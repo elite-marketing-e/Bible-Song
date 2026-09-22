@@ -3,7 +3,7 @@
     // DERNIER code, et non une instance Electron ouverte AVANT les correctifs (ou un serveur
     // 5510 réutilisé). Dans la console du panneau (Ctrl+Shift+I → Console), taper
     // BSP_PANEL_BUILD, ou lire la ligne « [BSP] PANEL BUILD-… » au chargement.
-    try { window.BSP_PANEL_BUILD = 'PANEL BUILD-42 · 2026-09-22 · flèches import/export inversées + MAJ manuelle (bouton) via GitHub Releases'; console.log('[BSP] ' + window.BSP_PANEL_BUILD); } catch (_) {}
+    try { window.BSP_PANEL_BUILD = 'PANEL BUILD-43 · 2026-09-22 · bouton MAJ dans l\'en-tête (pastille MAJ dispo / Installer)'; console.log('[BSP] ' + window.BSP_PANEL_BUILD); } catch (_) {}
 
     // ===== DB =====
     function openDb() {

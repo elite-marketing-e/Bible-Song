@@ -39,7 +39,9 @@
   </div>
   <script>
     function bspIsDesktopMode() {
-      return !!(window.BSPDesktop && window.location && window.location.protocol === 'file:');
+      // L'app Electron sert le panneau en http://127.0.0.1/panel (pas file://), MAIS injecte le
+      // pont preload window.BSPDesktop. OBS/navigateur web n'ont PAS ce pont → détection fiable.
+      return !!window.BSPDesktop;
     }
 
     const BSP_RELEASES_URL = 'https://github.com/elite-marketing-e/Bible-Song/releases/latest';
@@ -150,6 +152,49 @@
       }
     }
 
+    // ── Bouton MAJ sur l'INTERFACE PRINCIPALE (en-tête) ──
+    // Icône discrète quand tout va bien ; devient une pastille visible « MAJ vX » (à télécharger)
+    // puis « Installer vX » quand la MAJ est prête. Manuel : rien ne s'installe sans clic.
+    let bspHdrUpdateState = 'idle';
+    function bspSetHeaderUpdate(payload) {
+      const btn = document.getElementById('btn-update');
+      const ic = document.getElementById('btn-update-ic');
+      const lbl = document.getElementById('btn-update-label');
+      const dot = document.getElementById('btn-update-dot');
+      if (!btn || !ic || !lbl || !dot) return;
+      const state = (payload && payload.state) || 'idle';
+      bspHdrUpdateState = state;
+      const v = (payload && payload.version) ? ('v' + payload.version) : '';
+      btn.className = 'btn toolbar-icon-btn bsp-hdr-update state-' + state;
+      lbl.style.display = 'none'; dot.style.display = 'none'; ic.style.display = 'block';
+      if (state === 'checking') { btn.title = 'Recherche de mise à jour…'; }
+      else if (state === 'available') { ic.style.display = 'none'; lbl.style.display = ''; lbl.textContent = '⬇ MAJ ' + v; btn.title = 'Mise à jour disponible ' + v + ' — cliquer pour télécharger'; }
+      else if (state === 'downloading') { ic.style.display = 'none'; lbl.style.display = ''; lbl.textContent = 'MAJ ' + ((payload && payload.percent) || 0) + '%'; btn.title = 'Téléchargement de la mise à jour…'; }
+      else if (state === 'downloaded') { ic.style.display = 'none'; lbl.style.display = ''; dot.style.display = ''; lbl.textContent = '⟳ Installer ' + v; btn.title = 'Mise à jour prête ' + v + ' — cliquer pour installer et redémarrer'; }
+      else if (state === 'none') { btn.title = 'Vous êtes à jour'; setTimeout(() => { if (bspHdrUpdateState === 'none') bspSetHeaderUpdate({ state: 'idle' }); }, 4000); }
+      else if (state === 'error') { btn.title = 'Échec de la vérification des MAJ'; }
+      else { btn.title = 'Rechercher une mise à jour'; }
+    }
+    function bspHeaderUpdateClick() {
+      if (bspHdrUpdateState === 'available') { bspDownloadUpdate(); }
+      else if (bspHdrUpdateState === 'downloaded') { bspInstallUpdateNow(); }
+      else if (bspHdrUpdateState === 'downloading') { /* déjà en cours */ }
+      else { bspCheckForUpdates(); }
+    }
+    function bspInitHeaderUpdate() {
+      const btn = document.getElementById('btn-update');
+      if (!btn) return;
+      // Navigateur / dock OBS : pas d'updater intégré → on cache le bouton (Settings garde « Open Releases »).
+      if (!bspIsDesktopMode()) { btn.style.display = 'none'; return; }
+      btn.style.display = '';
+      bspSetHeaderUpdate({ state: 'idle' });
+      if (window.BSPDesktop && window.BSPDesktop.onUpdateStatus) {
+        window.BSPDesktop.onUpdateStatus((payload) => bspSetHeaderUpdate(payload));
+      }
+      // Vérification SILENCIEUSE au lancement : fait apparaître la pastille s'il y a une MAJ (sans l'installer).
+      setTimeout(() => { try { bspCheckForUpdates(); } catch (_) {} }, 4000);
+    }
+
     let bspAiHelperRunning = false;
 
     function bspSetAiHelperRunning(running) {
@@ -231,6 +276,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       bspSetAiHelperRunning(false);
       bspInitUpdateUi();
+      bspInitHeaderUpdate();
     });
   </script>
 
@@ -356,6 +402,11 @@
         <button class="btn toolbar-icon-btn" id="btn-import" onclick="triggerImport()" title="Import" data-i18n-title="common_import"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
         <button class="btn toolbar-icon-btn" id="btn-preset" style="position:relative" onclick="togglePresetPopover()" title="Animation" data-i18n-title="ui_animation"><span style="font-family:'Georgia',serif;font-style:italic;font-size:16px;font-weight:900;line-height:1">fx</span></button>
         <button class="btn toolbar-icon-btn" id="btn-subtitles" onclick="bspOpenSubtitleModal()" title="Sous-titres" data-i18n-title="subtitle_library_title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><rect x="3" y="6" width="18" height="12" rx="2"/><line x1="7" y1="14" x2="13" y2="14"/><line x1="16" y1="14" x2="18" y2="14"/></svg></button>
+        <button class="btn toolbar-icon-btn bsp-hdr-update" id="btn-update" style="display:none;position:relative" onclick="bspHeaderUpdateClick()" title="Rechercher une mise à jour">
+          <svg id="btn-update-ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 8 16 8"/></svg>
+          <span id="btn-update-label" style="display:none;margin-left:6px;font-size:11px;font-weight:800;white-space:nowrap"></span>
+          <span id="btn-update-dot" style="display:none;position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px var(--bg-dark,#0d1017)"></span>
+        </button>
         <div class="annotate-wrap">
           <button class="btn toolbar-icon-btn" id="btn-annotate" title="Annotate" data-i18n-title="ui_annotate">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block">
@@ -3575,6 +3626,16 @@
   </div>
 
   <!-- New Song Modal -->
+  <style id="bsp-hdr-update-styles">
+    /* Bouton MAJ dans l'en-tête : icône quand idle, pastille visible quand une MAJ arrive. */
+    .bsp-hdr-update.state-available { background:linear-gradient(140deg,var(--accent,#3b82f6),#6366f1)!important; color:#fff!important; border-color:transparent!important; width:auto!important; }
+    .bsp-hdr-update.state-downloading { width:auto!important; }
+    .bsp-hdr-update.state-downloaded { background:linear-gradient(140deg,#22c55e,#16a34a)!important; color:#052e16!important; border-color:transparent!important; width:auto!important; animation:bspUpdPulse 1.7s ease-in-out infinite; }
+    .bsp-hdr-update.state-available, .bsp-hdr-update.state-downloading, .bsp-hdr-update.state-downloaded { padding:0 12px!important; display:inline-flex!important; align-items:center; }
+    .bsp-hdr-update.state-checking svg { animation:bspHdrSpin .9s linear infinite; }
+    @keyframes bspHdrSpin { to { transform:rotate(360deg); } }
+    @keyframes bspUpdPulse { 0%,100%{ box-shadow:0 0 0 0 rgba(34,197,94,.55);} 50%{ box-shadow:0 0 0 6px rgba(34,197,94,0);} }
+  </style>
   <style id="bsp-st-styles">
     /* ===== Sous-titres — design system dédié (refonte UI, moins « générique ») ===== */
     #subtitleModal .modal-content {
