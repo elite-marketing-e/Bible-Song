@@ -1,7 +1,7 @@
 {
   "name": "eeam-biblesong-pro",
   "productName": "EEAM_BibleSong Pro",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "Bible Song Pro — projection de versets bibliques et de chants sur plusieurs sorties (Live/OBS, écrans connectés, écrans distants, téléphone).",
   "author": "Bible Song Pro",
   "license": "SEE LICENSE IN LICENSE",
