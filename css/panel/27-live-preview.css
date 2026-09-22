@@ -1,0 +1,88 @@
+/* ===== Live preview window (bottom-right, resizable) ===== */
+.bsp-preview {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 9500;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-content-bg, #14161c);
+  border: 1px solid var(--border-elevated, rgba(255,255,255,0.14));
+  border-radius: 10px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  --bsp-preview-body-h: 190px;
+}
+.bsp-preview[hidden] { display: none; }
+
+.bsp-preview__head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  background: var(--bg-panel, #1c2330);
+  border-bottom: 1px solid var(--border, rgba(255,255,255,0.08));
+  cursor: default;
+}
+.bsp-preview__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--live, #e5484d);
+  box-shadow: 0 0 7px rgba(229, 72, 77, 0.7);
+  flex-shrink: 0;
+}
+.bsp-preview__title {
+  flex: 1; min-width: 0;
+  font-size: 11px; font-weight: 700; color: var(--text, #e6edf3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bsp-preview__btn {
+  flex-shrink: 0;
+  width: 20px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; border-radius: 5px;
+  color: var(--text-secondary, #8b949e); font-size: 13px; line-height: 1; cursor: pointer;
+}
+.bsp-preview__btn:hover { color: var(--text, #fff); background: rgba(255,255,255,0.08); }
+
+.bsp-preview__body {
+  height: var(--bsp-preview-body-h);
+  background: #000;
+  overflow: hidden;
+}
+.bsp-preview.is-collapsed .bsp-preview__body { height: 0; }
+.bsp-preview.is-collapsed .bsp-preview__resize { display: none; }
+
+.bsp-preview__frame {
+  width: 100%; height: 100%;
+  border: 0; display: block;
+  background: #000;
+}
+
+/* Grip at the top-left corner: the box is anchored bottom-right, so dragging it up/left
+   grows the window. */
+.bsp-preview__resize {
+  position: absolute;
+  top: 0; left: 0;
+  width: 16px; height: 16px;
+  cursor: nwse-resize;
+  z-index: 2;
+  background:
+    linear-gradient(135deg, transparent 0 40%, var(--accent, #0a84ff) 40% 55%, transparent 55%),
+    linear-gradient(135deg, transparent 0 62%, var(--accent, #0a84ff) 62% 77%, transparent 77%);
+  opacity: 0.65;
+}
+.bsp-preview__resize:hover { opacity: 1; }
+
+/* Toolbar toggle active state */
+#bsp-preview-btn.is-active { color: var(--accent, #0a84ff); }
+
+/* Small viewports: never let the preview exceed the screen. */
+@media (max-width: 640px) {
+  .bsp-preview { right: 8px; bottom: 8px; max-width: calc(100vw - 16px); }
+}
+
+/* Light theme */
+[data-theme-mode="light"] .bsp-preview { background: #ffffff; }
+[data-theme-mode="light"] .bsp-preview__head { background: #f1f3f5; }

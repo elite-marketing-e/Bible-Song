@@ -1,0 +1,432 @@
+/* ===== Screens bar: "Écrans" button + added-screen chips + display popover ===== */
+
+/* .nav-row is a fixed 5-column grid (Clear | Project Live | search | prev | next).
+   The screens bar is a 6th cell inserted after Project Live, opted in by a class on
+   the row rather than :has(), whose support in the OBS CEF build is unknown.
+   `minmax(0, auto)` lets the cell shrink to nothing instead of stealing from the
+   search field, which keeps its minmax(250px, 1fr) intact on a narrow dock. */
+.nav-row.has-screens {
+  grid-template-columns: auto auto minmax(0, auto) minmax(250px, 1fr) auto auto;
+}
+
+.bsp-screens {
+  display: flex;
+  /* stretch, not center: #btn-project-live is a direct grid child and is sized by the
+     row, so the screens bar must fill the same height to match it. */
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0; /* lets the chip strip shrink instead of pushing the search field */
+}
+
+/* Matches #btn-project-live: same vertical padding as .btn (9px), same font size. */
+.bsp-screens__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 9px 14px;
+  min-width: 110px;
+}
+
+.bsp-screens__btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.bsp-screens.is-open .bsp-screens__btn { border-color: var(--accent); color: var(--accent); }
+
+.bsp-screens__chips {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding: 1px;
+}
+
+.bsp-screens__chips::-webkit-scrollbar { display: none; }
+
+/* ── Chip ── */
+.bsp-screens__chip {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  max-width: 190px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--button-border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.bsp-screens__chip:hover { border-color: var(--border-elevated); }
+/* Selected screen gets a pronounced highlight — ring, lift and accent fill — so the
+   operator can see at a glance which screen the design panel below is editing. */
+.bsp-screens__chip.is-selected {
+  border-color: var(--accent);
+  background: rgba(10, 132, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.45), 0 4px 12px rgba(10, 132, 255, 0.25);
+  transform: translateY(-1px);
+}
+.bsp-screens__chip.is-projecting { border-color: var(--danger); background: rgba(255, 69, 58, 0.14); }
+.bsp-screens__chip.is-selected.is-projecting {
+  box-shadow: 0 0 0 2px rgba(255, 69, 58, 0.5), 0 4px 12px rgba(255, 69, 58, 0.25);
+}
+.bsp-screens__chip.is-offline { opacity: 0.55; }
+/* Frozen: an icy outline, distinct from live-red, so a held screen is obvious at a
+   glance and never mistaken for one that is simply idle. */
+.bsp-screens__chip.is-frozen {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.16);
+}
+.bsp-screens__chip.is-frozen .bsp-screens__chip-dot,
+.bsp-screens__chip.is-frozen .bsp-screens__chip-live-icon { color: #38bdf8; background: #38bdf8; animation: none; }
+.bsp-screens__chip.is-frozen .bsp-screens__chip-live-icon { background: transparent; }
+
+.bsp-screens__chip-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 7px 9px;
+  cursor: pointer;
+  outline: none;
+}
+
+.bsp-screens__chip.is-selected .bsp-screens__chip-pick { color: var(--accent); font-weight: 600; }
+
+.bsp-screens__chip-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+.bsp-screens__chip.is-selected .bsp-screens__chip-dot { background: var(--accent); }
+.bsp-screens__chip.is-offline .bsp-screens__chip-dot { background: var(--text-tertiary); }
+
+/* A projecting chip pulses so an output left running is impossible to miss. */
+.bsp-screens__chip.is-projecting .bsp-screens__chip-dot {
+  background: var(--danger);
+  animation: bsp-screens-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes bsp-screens-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.bsp-screens__chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Live (OBS) chip: an inline icon in place of the status dot, tinted live-red so it
+   reads as the broadcast output rather than a physical screen. */
+.bsp-screens__chip-live-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--danger);
+}
+
+.bsp-screens__chip-live-icon svg { width: 13px; height: 13px; display: block; }
+
+.bsp-screens__chip--live { border-color: rgba(255, 69, 58, 0.35); }
+.bsp-screens__chip--live.is-selected { border-color: var(--accent); }
+.bsp-screens__chip--live.is-projecting .bsp-screens__chip-live-icon {
+  animation: bsp-screens-pulse 1.6s ease-in-out infinite;
+}
+
+.bsp-screens__chip-act,
+.bsp-screens__chip-rm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 100%;
+  min-height: 30px;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--button-border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  outline: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.bsp-screens__chip-act svg { width: 10px; height: 10px; }
+.bsp-screens__chip-rm svg { width: 10px; height: 10px; }
+
+.bsp-screens__chip-act:hover:not(:disabled) { background: rgba(48, 209, 88, 0.18); color: var(--success); }
+.bsp-screens__chip-act.is-stop { color: var(--danger); }
+.bsp-screens__chip-act.is-stop:hover { background: rgba(255, 69, 58, 0.2); }
+.bsp-screens__chip-act:disabled { opacity: 0.4; cursor: not-allowed; }
+.bsp-screens__chip-rm:hover { background: rgba(255, 69, 58, 0.18); color: var(--danger); }
+
+.bsp-screens__chip-act:focus-visible,
+.bsp-screens__chip-rm:focus-visible,
+.bsp-screens__chip-pick:focus-visible { box-shadow: inset 0 0 0 2px rgba(10, 132, 255, 0.5); }
+
+/* ── Popover ── */
+/* Portaled to <body> and positioned from JS (preferAbove), same reason as the sidebar
+   dropdowns: the panel nests inside several `overflow: hidden` ancestors. */
+.bsp-screens__popover {
+  position: fixed;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+  max-height: 300px;
+  background: var(--panel-content-bg);
+  border: 1px solid var(--border-elevated);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px var(--button-shadow);
+  overflow: hidden;
+}
+
+.bsp-screens__popover[hidden] { display: none; }
+
+.bsp-screens__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.bsp-screens__title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--section-label-color);
+}
+
+.bsp-screens__refresh {
+  background: transparent;
+  border: 1px solid var(--button-border);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 10px;
+  padding: 3px 7px;
+  cursor: pointer;
+  outline: none;
+}
+
+.bsp-screens__refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+.bsp-screens__list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bsp-screens__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
+  cursor: pointer;
+  padding: 8px 9px;
+  font-family: inherit;
+  outline: none;
+}
+
+.bsp-screens__option:hover:not(:disabled) { border-color: var(--accent); background: rgba(10, 132, 255, 0.1); }
+.bsp-screens__option:focus-visible { border-color: var(--accent); }
+.bsp-screens__option.is-added { opacity: 0.5; cursor: default; }
+
+.bsp-screens__option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.bsp-screens__option-name {
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bsp-screens__option-meta {
+  font-size: 9px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bsp-screens__option-mark {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 9px;
+}
+
+.bsp-screens__option-mark svg { width: 12px; height: 12px; display: block; }
+.bsp-screens__option:hover:not(:disabled) .bsp-screens__option-mark { color: var(--accent); }
+
+.bsp-screens__placeholder {
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: center;
+  padding: 16px 8px;
+}
+
+.bsp-screens__note {
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+  padding: 0 10px 8px;
+}
+
+.bsp-screens__note:empty { display: none; }
+
+/* ── Light theme ── */
+[data-theme-mode="light"] .bsp-screens__chip {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+[data-theme-mode="light"] .bsp-screens__chip.is-selected {
+  background: rgba(0, 122, 255, 0.1) !important;
+  border-color: var(--accent) !important;
+}
+[data-theme-mode="light"] .bsp-screens__chip.is-projecting {
+  background: rgba(255, 59, 48, 0.1) !important;
+  border-color: var(--danger) !important;
+}
+[data-theme-mode="light"] .bsp-screens__chip-pick { color: #1c1c1e !important; }
+[data-theme-mode="light"] .bsp-screens__chip.is-selected .bsp-screens__chip-pick { color: var(--accent) !important; }
+[data-theme-mode="light"] .bsp-screens__chip-act,
+[data-theme-mode="light"] .bsp-screens__chip-rm { border-left-color: rgba(0, 0, 0, 0.1) !important; color: #536172 !important; }
+[data-theme-mode="light"] .bsp-screens__popover {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.16) !important;
+}
+[data-theme-mode="light"] .bsp-screens__head { border-bottom-color: rgba(0, 0, 0, 0.08) !important; }
+[data-theme-mode="light"] .bsp-screens__option {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #1c1c1e !important;
+}
+[data-theme-mode="light"] .bsp-screens__option:hover:not(:disabled) {
+  background: rgba(10, 132, 255, 0.1) !important;
+  border-color: var(--accent) !important;
+}
+[data-theme-mode="light"] .bsp-screens__refresh { color: #536172 !important; border-color: rgba(0, 0, 0, 0.12) !important; }
+
+/* ── Liquid glass theme ── */
+[data-theme="liquid-glass"] .bsp-screens__chip {
+  background: rgba(255, 255, 255, 0.35) !important;
+  border: 0.5px solid var(--lg-border) !important;
+  border-radius: var(--lg-pill-radius) !important;
+  backdrop-filter: blur(12px) !important;
+}
+[data-theme="liquid-glass"] .bsp-screens__chip-pick { color: #1c1c1e !important; }
+[data-theme="liquid-glass"] .bsp-screens__chip.is-selected {
+  background: rgba(10, 132, 255, 0.18) !important;
+  border-color: rgba(0, 122, 255, 0.45) !important;
+}
+[data-theme="liquid-glass"] .bsp-screens__chip-act,
+[data-theme="liquid-glass"] .bsp-screens__chip-rm { border-left-color: var(--lg-border) !important; color: #536172 !important; }
+[data-theme="liquid-glass"] .bsp-screens__popover {
+  background: var(--lg-surface-elevated) !important;
+  border: 0.5px solid var(--lg-border) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--lg-shadow-popup) !important;
+  backdrop-filter: blur(var(--lg-blur-heavy)) saturate(1.8) !important;
+}
+[data-theme="liquid-glass"] .bsp-screens__option {
+  background: rgba(255, 255, 255, 0.45) !important;
+  border: 0.5px solid var(--lg-border) !important;
+  border-radius: 10px !important;
+  color: #1c1c1e !important;
+}
+[data-theme="liquid-glass"] .bsp-screens__refresh {
+  border: 0.5px solid var(--lg-border) !important;
+  border-radius: var(--lg-pill-radius) !important;
+  color: #536172 !important;
+}
+
+/* ── Narrow dock ──
+   Six controls cannot share one line forever, so something has to give. The search
+   field yields, not the screens bar: the action buttons stay together on the first
+   line and search takes a full-width second line. The grid is swapped for flex here
+   because grid items cannot wrap.
+   Keyed off the viewport, which in an OBS dock is the panel itself. The 880px figure
+   is where the row genuinely stops fitting: it needs roughly
+   50 (Clear) + 126 (Project Live) + 110 (Screens) + 250 (search min) + 32 + 32 + gaps
+   ≈ 630px, plus the 200px sidebar and padding. Above this the grid is left alone. */
+@media (max-width: 880px) {
+  .nav-row.has-screens {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .nav-row.has-screens > * { flex: 0 0 auto; }
+  /* Takes the leftover room on the button line; the chip strip scrolls inside it. */
+  .nav-row.has-screens > .bsp-screens { flex: 1 1 auto; min-width: 0; }
+  /* order:1 pushes search past the buttons so it is what wraps, never the screens. */
+  .nav-row.has-screens > .nav-row__search { flex: 1 1 100%; order: 1; }
+}
+
+/* Tighter still: the label goes, the icon carries the button. The accessible name
+   stays on the title/aria-label, so nothing is lost to a screen reader. */
+@media (max-width: 720px) {
+  .bsp-screens__btn {
+    min-width: 0;
+    padding: 9px 10px;
+  }
+  .bsp-screens__btn-label { display: none; }
+}
+
+@media (pointer: coarse) {
+  .bsp-screens__chip-pick { padding: 9px 10px; font-size: 12px; }
+  .bsp-screens__chip-act,
+  .bsp-screens__chip-rm { width: 30px; }
+  .bsp-screens__option { padding: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bsp-screens__chip,
+  .bsp-screens__chip-act,
+  .bsp-screens__chip-rm { transition: none; }
+  .bsp-screens__chip.is-projecting .bsp-screens__chip-dot { animation: none; }
+}
+
+/* ===== Design controls locked until an output chip is selected ===== */
+/* Mode FS/LT, Lines, Background and Background type only edit a SELECTED output. With
+   nothing selected they are greyed and inert, so changes can't silently land on the live
+   output and then conflict with a screen picked afterwards. Pick a chip (Live or a
+   screen) to unlock. */
+.bsp-ctl-locked {
+  opacity: 0.38;
+  pointer-events: none;
+  filter: grayscale(0.5);
+  cursor: not-allowed;
+}

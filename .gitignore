@@ -1,0 +1,28 @@
+# Dépendances & build
+node_modules/
+dist/
+out/
+release/
+*.log
+npm-debug.log*
+
+# Certificats TLS locaux (mkcert) — CLÉ PRIVÉE, ne JAMAIS publier
+server/certs/
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Configs/exports personnels de l'utilisateur (données, lourds)
+saved configurations/
+
+# Fichiers exportés par l'app (peuvent contenir des données)
+*.eeamconf
+*.eeamset
+*.eeamsub
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

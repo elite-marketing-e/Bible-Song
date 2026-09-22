@@ -1,0 +1,68 @@
+{
+  "name": "eeam-biblesong-pro",
+  "productName": "EEAM_BibleSong Pro",
+  "version": "2.1.1",
+  "description": "Bible Song Pro — projection de versets bibliques et de chants sur plusieurs sorties (Live/OBS, écrans connectés, écrans distants, téléphone).",
+  "author": "Bible Song Pro",
+  "license": "SEE LICENSE IN LICENSE",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "server": "node server/bsp-server.js",
+    "dist": "electron-builder",
+    "dist:dir": "electron-builder --dir",
+    "bump": "npm version patch --no-git-tag-version",
+    "bump:minor": "npm version minor --no-git-tag-version",
+    "release": "npm version patch --no-git-tag-version && electron-builder"
+  },
+  "build": {
+    "appId": "org.eeam.biblesongpro.app",
+    "productName": "EEAM_BibleSong Pro",
+    "asar": false,
+    "icon": "build/icon.png",
+    "files": [
+      "electron/**/*",
+      "server/**/*",
+      "js/**/*",
+      "css/**/*",
+      "assets/**/*",
+      "Images/**/*",
+      "bibles/**/*",
+      "BSP_display.html",
+      "BSP_phone.html",
+      "Bible Song Pro panel.html",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/{.DS_Store,.git,.gitignore}"
+    ],
+    "extraResources": [
+      {
+        "from": "saved configurations",
+        "to": "saved configurations"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "EEAM-BibleSong-Pro-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "EEAM_BibleSong Pro"
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^26.15.3"
+  }
+}

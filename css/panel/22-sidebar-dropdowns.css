@@ -1,0 +1,439 @@
+/* ===== Sidebar dropdowns: Bible categories (bcat) + Bible versions (ver) ===== */
+/* Both share one visual language. Rules common to the two are grouped in selector
+   lists so a theme override written once applies to both.
+   The panel theme redefines almost nothing through CSS variables: it overrides each
+   rule with `!important` under [data-theme-mode="light"] / [data-theme="liquid-glass"].
+   So every surface below needs its own override in those blocks, otherwise it stays
+   dark in light mode. */
+
+.bsp-bcat,
+.bsp-ver {
+  position: relative;
+  min-width: 0;
+}
+
+.bsp-bcat { flex: 1; }
+
+/* #version-bar supplies vertical padding only (4px 0); match the 10px inline
+   padding the old .version-row used so the dropdown lines up with the sidebar. */
+.bsp-ver {
+  width: 100%;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+/* Native <select>/state holder kept in the DOM but out of the layout. */
+.bsp-bcat__native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Trigger ── */
+.bsp-bcat__trigger,
+.bsp-ver__trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: #2d333f;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.bsp-bcat__trigger:hover:not(:disabled),
+.bsp-ver__trigger:hover:not(:disabled) { border-color: var(--border-elevated); }
+
+.bsp-bcat__trigger:focus-visible,
+.bsp-ver__trigger:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.28);
+}
+
+.bsp-bcat.is-open .bsp-bcat__trigger,
+.bsp-ver.is-open .bsp-ver__trigger { border-color: var(--accent); }
+
+.bsp-bcat__trigger:disabled,
+.bsp-ver__trigger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.bsp-bcat__value,
+.bsp-ver__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bsp-bcat__value.is-placeholder,
+.bsp-ver__value.is-placeholder { color: var(--text-secondary); }
+
+.bsp-bcat__chevron,
+.bsp-ver__chevron {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.bsp-bcat.is-open .bsp-bcat__chevron,
+.bsp-ver.is-open .bsp-ver__chevron { transform: rotate(180deg); }
+
+/* Colour dot carrying the per-version accent from VERSION_COLORS. */
+.bsp-ver__dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bsp-ver-color, var(--text-tertiary));
+}
+
+.bsp-ver__count {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Panel ── */
+/* Moved to <body> while open and positioned from JS in viewport coordinates, to
+   escape the `overflow: hidden` ancestors that would clip it in a short OBS dock. */
+.bsp-bcat__panel,
+.bsp-ver__panel {
+  position: fixed;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  background: var(--panel-content-bg);
+  border: 1px solid var(--border-elevated);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--button-shadow);
+  overflow: hidden;
+}
+
+.bsp-bcat__panel[hidden],
+.bsp-ver__panel[hidden] { display: none; }
+
+.bsp-bcat__filter-wrap,
+.bsp-ver__filter-wrap {
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.bsp-bcat__filter,
+.bsp-ver__filter {
+  width: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  outline: none;
+}
+
+.bsp-bcat__filter:focus,
+.bsp-ver__filter:focus { border-color: var(--accent); }
+.bsp-bcat__filter::placeholder,
+.bsp-ver__filter::placeholder { color: var(--text-tertiary); }
+
+.bsp-bcat__list,
+.bsp-ver__list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+}
+
+.bsp-bcat__group + .bsp-bcat__group { margin-top: 2px; }
+
+.bsp-bcat__group-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-content-bg);
+  color: var(--section-label-color);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 6px 4px;
+}
+
+.bsp-bcat__option {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 6px 8px;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bsp-bcat__option.is-active { background: rgba(255, 255, 255, 0.08); }
+.bsp-bcat__option.is-selected { color: var(--accent); font-weight: 600; }
+.bsp-bcat__option.is-selected.is-active { background: rgba(10, 132, 255, 0.18); }
+
+/* ── Version rows (colour dot + name + flags + delete) ── */
+.bsp-ver__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 5px;
+  padding: 0 2px 0 8px;
+}
+
+.bsp-ver__row.is-active { background: rgba(10, 132, 255, 0.14); }
+.bsp-ver__row.is-cursor { background: rgba(255, 255, 255, 0.08); }
+.bsp-ver__row.is-active.is-cursor { background: rgba(10, 132, 255, 0.24); }
+
+.bsp-ver__pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 6px 0;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+
+.bsp-ver__row.is-active .bsp-ver__pick { color: var(--accent); font-weight: 600; }
+
+.bsp-ver__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bsp-ver__flag {
+  flex-shrink: 0;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}
+
+.bsp-ver__flag.primary { background: var(--accent); color: #fff; }
+.bsp-ver__flag.secondary { background: var(--text-tertiary); color: #fff; }
+
+/* Destructive: revealed on hover/focus only, so it cannot be hit by accident
+   mid-service. Deleting a version is permanent (it is dropped from IndexedDB). */
+.bsp-ver__del {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  outline: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.bsp-ver__row:hover .bsp-ver__del,
+.bsp-ver__row:focus-within .bsp-ver__del,
+.bsp-ver__del:focus-visible { opacity: 1; }
+
+.bsp-ver__del:hover,
+.bsp-ver__del:focus-visible { background: rgba(255, 69, 58, 0.16); color: var(--danger); }
+
+.bsp-ver__del.is-confirming {
+  opacity: 1;
+  width: auto;
+  padding: 0 6px;
+  background: var(--danger);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Import action pinned under the version list — the way in when nothing is loaded. */
+.bsp-ver__import {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 2px;
+  padding: 7px 8px;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 5px 5px;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+
+.bsp-ver__import:hover { background: rgba(10, 132, 255, 0.14); }
+.bsp-ver__import:focus-visible { box-shadow: inset 0 0 0 2px rgba(10, 132, 255, 0.5); }
+.bsp-ver__import svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+[data-theme-mode="light"] .bsp-ver__import { border-top-color: rgba(0, 0, 0, 0.1) !important; }
+
+.bsp-bcat__empty,
+.bsp-ver__empty {
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: center;
+  padding: 14px 8px;
+}
+
+/* ── Light theme ── */
+[data-theme-mode="light"] .bsp-bcat__trigger,
+[data-theme-mode="light"] .bsp-ver__trigger {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.10) !important;
+  color: #1c1c1e !important;
+}
+[data-theme-mode="light"] .bsp-bcat__trigger:hover:not(:disabled),
+[data-theme-mode="light"] .bsp-ver__trigger:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.18) !important;
+}
+[data-theme-mode="light"] .bsp-bcat__panel,
+[data-theme-mode="light"] .bsp-ver__panel {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16) !important;
+}
+[data-theme-mode="light"] .bsp-bcat__group-label {
+  background: #ffffff !important;
+}
+[data-theme-mode="light"] .bsp-bcat__filter,
+[data-theme-mode="light"] .bsp-ver__filter {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.10) !important;
+  color: #1c1c1e !important;
+}
+[data-theme-mode="light"] .bsp-bcat__filter-wrap,
+[data-theme-mode="light"] .bsp-ver__filter-wrap {
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+[data-theme-mode="light"] .bsp-bcat__option,
+[data-theme-mode="light"] .bsp-ver__pick {
+  color: #1c1c1e !important;
+}
+[data-theme-mode="light"] .bsp-bcat__option.is-active,
+[data-theme-mode="light"] .bsp-ver__row.is-cursor {
+  background: rgba(0, 0, 0, 0.06) !important;
+}
+[data-theme-mode="light"] .bsp-bcat__option.is-selected,
+[data-theme-mode="light"] .bsp-ver__row.is-active .bsp-ver__pick {
+  color: var(--accent) !important;
+}
+[data-theme-mode="light"] .bsp-bcat__option.is-selected.is-active,
+[data-theme-mode="light"] .bsp-ver__row.is-active {
+  background: rgba(0, 122, 255, 0.10) !important;
+}
+[data-theme-mode="light"] .bsp-ver__row.is-active.is-cursor {
+  background: rgba(0, 122, 255, 0.18) !important;
+}
+
+/* ── Liquid glass theme ── */
+[data-theme="liquid-glass"] .bsp-bcat__trigger,
+[data-theme="liquid-glass"] .bsp-ver__trigger {
+  background: rgba(255, 255, 255, 0.35) !important;
+  border: 0.5px solid var(--lg-border) !important;
+  border-radius: var(--lg-pill-radius) !important;
+  box-shadow: var(--lg-border-inner) !important;
+  backdrop-filter: blur(12px) !important;
+  color: #1c1c1e !important;
+}
+[data-theme="liquid-glass"] .bsp-bcat__trigger:hover:not(:disabled),
+[data-theme="liquid-glass"] .bsp-ver__trigger:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.50) !important;
+}
+[data-theme="liquid-glass"] .bsp-bcat__panel,
+[data-theme="liquid-glass"] .bsp-ver__panel {
+  background: var(--lg-surface-elevated) !important;
+  border: 0.5px solid var(--lg-border) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--lg-shadow-popup) !important;
+  backdrop-filter: blur(var(--lg-blur-heavy)) saturate(1.8) !important;
+}
+[data-theme="liquid-glass"] .bsp-bcat__group-label {
+  /* Sticky headers must stay opaque over a blurred surface, or options read through. */
+  background: rgba(255, 255, 255, 0.92) !important;
+}
+[data-theme="liquid-glass"] .bsp-bcat__filter,
+[data-theme="liquid-glass"] .bsp-ver__filter {
+  background: rgba(255, 255, 255, 0.45) !important;
+  border: 0.5px solid var(--lg-border) !important;
+  border-radius: var(--lg-pill-radius) !important;
+  color: #1c1c1e !important;
+}
+[data-theme="liquid-glass"] .bsp-bcat__option,
+[data-theme="liquid-glass"] .bsp-ver__pick {
+  color: #1c1c1e !important;
+}
+[data-theme="liquid-glass"] .bsp-bcat__option.is-active,
+[data-theme="liquid-glass"] .bsp-ver__row.is-cursor {
+  background: rgba(255, 255, 255, 0.55) !important;
+}
+
+/* Coarse pointers (tablet used as a remote control) need larger hit targets. */
+@media (pointer: coarse) {
+  .bsp-bcat__trigger,
+  .bsp-ver__trigger { padding: 8px 10px; font-size: 12px; }
+  .bsp-bcat__option,
+  .bsp-ver__pick { padding: 10px 0; font-size: 12px; }
+  .bsp-bcat__option { padding: 10px 8px; }
+  .bsp-bcat__filter,
+  .bsp-ver__filter { padding: 8px; font-size: 12px; }
+  .bsp-ver__del { opacity: 1; width: 26px; height: 26px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bsp-bcat__trigger,
+  .bsp-ver__trigger,
+  .bsp-bcat__chevron,
+  .bsp-ver__chevron,
+  .bsp-ver__del { transition: none; }
+}

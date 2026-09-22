@@ -1,0 +1,6 @@
+{
+  "httpPort": 5510,
+  "wsPort": 5511,
+  "pairCode": "197581",
+  "scope": "local"
+}

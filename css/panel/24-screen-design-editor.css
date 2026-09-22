@@ -1,0 +1,517 @@
+/* Freeze toggle: icy when active, matching the frozen chip so the two read as one state. */
+.bsp-freeze-btn.is-frozen {
+  color: #38bdf8;
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.16);
+}
+
+/* Pencil: revealed on hover/focus so it never competes with the slide text at a glance. */
+.lyric-edit {
+  flex-shrink: 0;
+  align-self: stretch;
+  width: 30px;
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--button-border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  outline: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.lyric-edit svg { width: 13px; height: 13px; display: block; }
+.lyric-row:hover .lyric-edit,
+.lyric-row:focus-within .lyric-edit { opacity: 1; }
+.lyric-edit:hover { color: var(--accent); border-color: var(--accent); }
+.lyric-edit:focus-visible { opacity: 1; box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.4); }
+
+@media (pointer: coarse) { .lyric-edit { opacity: 1; } }
+
+/* In-place editing surface, replacing the slide while it is being edited. */
+.lyric-quick-edit { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.lyric-quick-edit__input {
+  width: 100%;
+  min-height: 56px;
+  resize: vertical;
+  background: var(--bg-panel);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.lyric-quick-edit__hint { font-size: 10px; color: var(--text-secondary); }
+
+[data-theme-mode="light"] .lyric-quick-edit__input {
+  background: #ffffff !important;
+  color: #1c1c1e !important;
+}
+
+/* Explicit "Live" action on each slide of the Setlist workspace. Clicking the text
+   selects that slide; this button also advances the setlist, as the old per-item Live
+   button did. */
+.lyric-go-live {
+  flex-shrink: 0;
+  align-self: stretch;
+  min-width: 46px;
+  margin-left: 6px;
+  padding: 0 10px;
+  background: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 6px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s ease;
+}
+
+.lyric-go-live:hover { background: #dc2626; }
+.lyric-go-live:focus-visible { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.45); }
+
+/* ===== Per-output design editor banner ===== */
+/* Shown while a screen chip is selected: it makes unmistakable that the settings
+   controls are now editing THAT screen, not the live/tab design — the one thing an
+   operator must never be confused about mid-service. */
+
+/* The editor is a floating modal opened from the design icon next to the Settings gear.
+   Edits apply live to the selected output, so the modal deliberately does NOT block the
+   rest of the panel visually more than necessary. */
+.bsp-sde-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.bsp-sde-modal[hidden] { display: none; }
+
+.bsp-sde-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.bsp-sde-banner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(560px, 100%);
+  max-height: min(80vh, 720px);
+  padding: 14px 16px;
+  background: var(--panel-content-bg);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.bsp-sde-banner[hidden] { display: none; }
+
+.bsp-sde-banner__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bsp-sde-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* The panel now carries Layout / Background / Text / Alignment, so cap its height and
+     let it scroll rather than push the live controls off a short dock. */
+  max-height: min(60vh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.bsp-sde-banner__body:empty { display: none; }
+
+.bsp-sde-section {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--section-label-color);
+  padding: 4px 0 1px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+
+.bsp-sde-section:first-child { border-top: 0; margin-top: 0; }
+
+.bsp-sde-select,
+.bsp-sde-number {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 5px 8px;
+  outline: none;
+}
+
+.bsp-sde-select { flex: 1; min-width: 0; }
+.bsp-sde-number { width: 72px; }
+.bsp-sde-select:focus,
+.bsp-sde-number:focus { border-color: var(--accent); }
+
+.bsp-sde-font-row { display: inline-flex; gap: 6px; flex: 1; min-width: 0; align-items: center; }
+
+.bsp-sde-sysfonts {
+  flex-shrink: 0;
+  white-space: nowrap;
+  background: transparent;
+  border: 1px solid var(--button-border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 5px 8px;
+  cursor: pointer;
+  outline: none;
+}
+
+.bsp-sde-sysfonts:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.bsp-sde-sysfonts:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Light theme ── */
+[data-theme-mode="light"] .bsp-sde-select,
+[data-theme-mode="light"] .bsp-sde-number {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #1c1c1e !important;
+}
+[data-theme-mode="light"] .bsp-sde-seg-group,
+[data-theme-mode="light"] .bsp-sde-toggle { background: rgba(0, 0, 0, 0.06) !important; }
+[data-theme-mode="light"] .bsp-sde-seg { color: #536172 !important; }
+[data-theme-mode="light"] .bsp-sde-section { border-top-color: rgba(0, 0, 0, 0.1) !important; }
+
+/* One design control per row: label on the left, control group on the right. */
+.bsp-sde-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bsp-sde-field__label {
+  flex: 0 0 96px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.bsp-sde-seg-group {
+  display: inline-flex;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 2px;
+}
+
+.bsp-sde-seg-group--wrap { flex-wrap: wrap; }
+
+/* Content-kind selector, promoted to the top of the editor: it governs which per-kind
+   design (Bible vs Songs) every control below edits, so it is full-width and large. */
+.bsp-sde-kind-top {
+  display: flex;
+  width: 100%;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 10px;
+  border-radius: 10px;
+}
+.bsp-sde-kind-top .bsp-sde-seg {
+  flex: 1 1 0;
+  padding: 11px 8px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-radius: 8px;
+}
+
+.bsp-sde-seg {
+  min-width: 30px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.bsp-sde-seg:hover { color: var(--text); }
+.bsp-sde-seg.is-active { background: var(--accent); color: #fff; }
+.bsp-sde-seg:focus-visible { box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.4); }
+
+.bsp-sde-toggle {
+  min-width: 56px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+}
+
+.bsp-sde-toggle.is-on { background: var(--success); border-color: var(--success); color: #05320f; }
+.bsp-sde-toggle:focus-visible { box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.4); }
+
+.bsp-sde-bg-value { display: inline-flex; gap: 6px; align-items: center; flex: 1; min-width: 0; }
+
+.bsp-sde-color {
+  width: 40px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.bsp-sde-url {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 5px 8px;
+  outline: none;
+}
+
+.bsp-sde-url:focus { border-color: var(--accent); }
+
+.bsp-sde-banner__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.bsp-sde-banner__icon svg { width: 16px; height: 16px; display: block; }
+
+.bsp-sde-banner__text {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.bsp-sde-banner__name {
+  color: var(--accent);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.bsp-sde-banner__count {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.bsp-sde-banner__reset,
+.bsp-sde-banner__done {
+  flex-shrink: 0;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.bsp-sde-banner__reset {
+  background: transparent;
+  border: 1px solid var(--button-border);
+  color: var(--text-secondary);
+}
+
+.bsp-sde-banner__reset:hover { border-color: var(--text-secondary); color: var(--text); }
+
+.bsp-sde-banner__done {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+}
+
+.bsp-sde-banner__done:hover { background: var(--accent-dark); }
+
+.bsp-sde-banner__reset:focus-visible,
+.bsp-sde-banner__done:focus-visible { box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.4); }
+
+/* While editing a screen, tint the selected chip's border to match the banner so the
+   link between "this chip" and "these settings" is visible at a glance. */
+body.bsp-editing-screen-design .bsp-screens__chip.is-selected {
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* ── Light theme ── */
+[data-theme-mode="light"] .bsp-sde-banner {
+  background: #ffffff !important;
+  border-color: var(--accent) !important;
+  color: #1c1c1e !important;
+}
+[data-theme-mode="light"] .bsp-design-btn.is-armed { color: var(--accent) !important; }
+[data-theme-mode="light"] .bsp-sde-banner__reset {
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  color: #536172 !important;
+}
+
+/* ── Liquid glass theme ── */
+[data-theme="liquid-glass"] .bsp-sde-banner {
+  background: rgba(10, 132, 255, 0.16) !important;
+  border: 0.5px solid rgba(0, 122, 255, 0.5) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(12px) !important;
+  color: #1c1c1e !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bsp-sde-banner__reset,
+  .bsp-sde-banner__done { transition: none; }
+}
+
+/* ===== Sliders (border radius, stroke, opacity…) ===== */
+.bsp-sde-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.bsp-sde-slider__range {
+  flex: 1;
+  min-width: 0;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.bsp-sde-slider__range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+.bsp-sde-slider__range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+.bsp-sde-slider__range:focus-visible { box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.4); }
+
+.bsp-sde-slider__val {
+  flex: 0 0 auto;
+  min-width: 42px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ===== Compound colour control (swatch + hex + opacity) ===== */
+.bsp-sde-color-ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.bsp-sde-color-ctl .bsp-sde-color { flex: 0 0 auto; }
+
+.bsp-sde-color-hex {
+  width: 92px;
+  flex: 0 0 auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 5px 8px;
+  text-transform: uppercase;
+  outline: none;
+}
+
+.bsp-sde-color-hex:focus { border-color: var(--accent); }
+
+.bsp-sde-color-ctl .bsp-sde-slider { flex: 1; }
+
+[data-theme-mode="light"] .bsp-sde-color-hex {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #1c1c1e !important;
+}
+
+/* ===== Polish: give each field a touch more breathing room + subtle hover ===== */
+.bsp-sde-field {
+  padding: 3px 6px;
+  border-radius: 8px;
+  transition: background 0.12s ease;
+}
+
+.bsp-sde-field:hover { background: rgba(127, 127, 127, 0.06); }
+
+.bsp-sde-section {
+  font-size: 9.5px;
+  padding-top: 8px;
+}

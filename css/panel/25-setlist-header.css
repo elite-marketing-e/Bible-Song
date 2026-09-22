@@ -1,0 +1,165 @@
+/* ===== Setlist header (sidebar) + new-setlist modal ===== */
+
+.bsp-slh {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.bsp-slh[hidden] { display: none; }
+
+.bsp-slh__top { display: flex; align-items: center; gap: 6px; }
+
+.bsp-slh__title {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 6px;
+  outline: none;
+}
+
+.bsp-slh__title:hover { border-color: var(--border); }
+.bsp-slh__title:focus { border-color: var(--accent); background: var(--bg-panel); }
+.bsp-slh__title::placeholder { color: var(--text-secondary); font-weight: 600; }
+
+.bsp-slh__btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--button-border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  outline: none;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.bsp-slh__btn svg { width: 15px; height: 15px; }
+.bsp-slh__btn:hover { color: var(--accent); border-color: var(--accent); }
+.bsp-slh__btn:focus-visible { box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.4); }
+
+.bsp-slh__comment {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 6px;
+  outline: none;
+}
+
+.bsp-slh__comment:hover { border-color: var(--border); }
+.bsp-slh__comment:focus { border-color: var(--accent); background: var(--bg-panel); color: var(--text); }
+.bsp-slh__comment::placeholder { color: var(--text-tertiary); }
+
+.bsp-slh__status {
+  min-height: 12px;
+  font-size: 10px;
+  color: var(--success);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.bsp-slh__status.is-shown { opacity: 1; }
+
+/* ── New-setlist modal ── */
+.bsp-nsl-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.bsp-nsl-modal[hidden] { display: none; }
+
+.bsp-nsl-modal__backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); }
+
+.bsp-nsl {
+  position: relative;
+  z-index: 1;
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  background: var(--panel-content-bg);
+  border: 1px solid var(--border-elevated);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  color: var(--text);
+}
+
+.bsp-nsl__heading { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+
+.bsp-nsl__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.bsp-nsl__input {
+  width: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.bsp-nsl__input:focus { border-color: var(--accent); }
+
+.bsp-nsl__check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  cursor: pointer;
+}
+
+.bsp-nsl__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+.bsp-nsl__cancel,
+.bsp-nsl__create {
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  outline: none;
+}
+
+.bsp-nsl__cancel { background: transparent; border: 1px solid var(--button-border); color: var(--text-secondary); }
+.bsp-nsl__cancel:hover { color: var(--text); border-color: var(--text-secondary); }
+.bsp-nsl__create { background: var(--accent); border: 1px solid var(--accent); color: #fff; }
+.bsp-nsl__create:hover { background: var(--accent-dark); }
+
+/* Light theme */
+[data-theme-mode="light"] .bsp-nsl { background: #ffffff !important; }
+[data-theme-mode="light"] .bsp-slh__title:focus,
+[data-theme-mode="light"] .bsp-slh__comment:focus,
+[data-theme-mode="light"] .bsp-nsl__input { background: rgba(0, 0, 0, 0.04) !important; color: #1c1c1e !important; }

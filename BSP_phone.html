@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>EEAM_BibleSong Pro — Télécommande</title>
+<style>
+  /* Mobile d'abord ; sombre, cohérent avec le panneau. */
+  :root {
+    --bg: #0d1117; --panel: #161b22; --card: #1c2330; --border: rgba(255,255,255,0.09);
+    --text: #e6edf3; --muted: #8b949e; --accent: #0a84ff; --live: #e5484d; --ok: #2ea043;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  /* Les barres d'adresse mobiles faussent height:100% — on ancre sur le défilement
+     normal du document et on colle en-tête + onglets en haut. */
+  body {
+    min-height: 100vh; min-height: 100dvh;
+    background: var(--bg); color: var(--text);
+    font: 15px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif;
+    overscroll-behavior: none;
+  }
+
+  /* ── En-tête : état + live (collé en haut) ── */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 10px;
+    padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .dot.on { background: var(--ok); box-shadow: 0 0 8px rgba(46,160,67,0.7); }
+  .dot.err { background: var(--live); }
+  #status { font-size: 12px; color: var(--muted); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #live-snippet {
+    max-width: 46%; font-size: 11px; color: #ffb3b6; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; border: 1px solid rgba(229,72,77,0.4); border-radius: 6px; padding: 3px 8px;
+  }
+  #live-snippet:empty { display: none; }
+
+  /* ── Onglets (collés sous l'en-tête) ── */
+  nav {
+    position: sticky; top: calc(38px + env(safe-area-inset-top)); z-index: 19;
+    display: flex; background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  nav button {
+    flex: 1; padding: 12px 2px 11px; background: none; border: 0; border-bottom: 2px solid transparent;
+    color: var(--muted); font: 600 11.5px/1 inherit; letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap;
+  }
+  nav button.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Contenu ── */
+  main { padding: 12px 12px calc(78px + env(safe-area-inset-bottom)); }
+  .waiting { color: var(--muted); font-size: 13px; padding: 18px 4px; text-align: center; }
+  .hidden { display: none !important; }
+  h2 { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 14px 2px 8px; }
+  .crumb { display: flex; align-items: center; gap: 8px; margin: 4px 2px 10px; }
+  .crumb button { background: var(--card); border: 1px solid var(--border); color: var(--accent); border-radius: 8px; padding: 7px 12px; font: 600 13px/1 inherit; }
+  .crumb span { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .list { display: flex; flex-direction: column; gap: 7px; }
+  .row {
+    display: flex; align-items: center; gap: 10px; text-align: left; width: 100%;
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); padding: 13px 14px; font: 500 15px/1.35 inherit;
+  }
+  .row:active { background: #232c3d; }
+  .row .tag { flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--muted); border: 1px solid var(--border); border-radius: 5px; padding: 2px 6px; }
+  .row .grow { flex: 1; min-width: 0; overflow: hidden; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 7px; }
+  .grid button { background: var(--card); border: 1px solid var(--border); border-radius: 9px; color: var(--text); padding: 13px 0; font: 600 15px/1 inherit; }
+  .grid button:active { background: #232c3d; }
+
+  .slide {
+    display: block; width: 100%; text-align: left; background: var(--card);
+    border: 1px solid var(--border); border-left: 3px solid transparent; border-radius: 10px;
+    color: var(--text); padding: 12px 14px; font: 400 14px/1.45 inherit; white-space: pre-wrap;
+  }
+  .slide:active { background: #232c3d; }
+  .slide.live { border-left-color: var(--live); background: rgba(229,72,77,0.10); }
+  .slide .n { font-size: 10px; font-weight: 700; color: var(--muted); display: block; margin-bottom: 3px; }
+
+  input[type=text], textarea, select {
+    width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); padding: 11px 12px; font: inherit; outline: none;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  textarea { min-height: 160px; resize: vertical; }
+
+  .btn { background: var(--accent); border: 0; border-radius: 10px; color: #fff; padding: 12px 18px; font: 600 14px/1 inherit; }
+  .btn.ghost { background: var(--card); border: 1px solid var(--border); color: var(--muted); }
+
+  /* Rangée « élément + bouton d'ajout à la setlist » */
+  .with-add { display: flex; gap: 7px; align-items: stretch; }
+  .with-add > :first-child { flex: 1; min-width: 0; }
+  .addbtn {
+    flex-shrink: 0; width: 46px; background: var(--card); border: 1px solid rgba(10,132,255,0.45);
+    border-radius: 10px; color: var(--accent); font: 700 20px/1 inherit;
+  }
+  .addbtn:active { background: rgba(10,132,255,0.18); }
+
+  /* Toast de confirmation */
+  #toast {
+    position: fixed; left: 50%; bottom: calc(74px + env(safe-area-inset-bottom));
+    transform: translateX(-50%); z-index: 40;
+    background: #1e2a1f; border: 1px solid rgba(46,160,67,0.5); color: #b8e6c2;
+    border-radius: 10px; padding: 10px 16px; font-size: 13px; max-width: 90vw;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ── Barre du bas : effacer ── */
+  footer {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, var(--bg) 30%);
+    display: flex; gap: 10px;
+  }
+  #btn-clear { flex: 1; background: var(--live); border: 0; border-radius: 12px; color: #fff; padding: 14px 0; font: 700 15px/1 inherit; letter-spacing: 0.04em; }
+  #btn-clear:active { filter: brightness(1.15); }
+
+  /* ── Écrans plein-page (verrou / erreur) ── */
+  .gate {
+    position: fixed; inset: 0; z-index: 50; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; padding: 30px; text-align: center;
+  }
+  .gate p { color: var(--muted); font-size: 14px; max-width: 340px; }
+  .gate .big { font-size: 17px; font-weight: 700; color: var(--text); }
+
+  /* ── Sous-titres ── */
+  .subcard { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .subcard.live { border-color: var(--live); box-shadow: 0 0 0 1px rgba(229,72,77,0.4) inset; }
+  .subcard .subhead { display: flex; align-items: center; gap: 8px; }
+  .subcard .subtype { flex: 1; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .subcard label { font-size: 11px; color: var(--muted); }
+  .subcard textarea { min-height: 64px; }
+  .subshow { flex-shrink: 0; border: 0; border-radius: 9px; padding: 9px 14px; font: 700 13px/1 inherit; color: #fff; background: var(--ok); }
+  .subshow.on { background: var(--live); }
+  @media (min-width: 700px) { main { max-width: 640px; margin: 0 auto; width: 100%; } }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="dot" id="conn-dot"></span>
+  <span id="status">Connexion…</span>
+  <span id="live-snippet"></span>
+</header>
+
+<nav>
+  <button id="tab-bible" class="on">Bible</button>
+  <button id="tab-songs">Chants</button>
+  <button id="tab-setlist">Setlist</button>
+  <button id="tab-subs">Sous-titres</button>
+</nav>
+
+<main>
+  <!-- BIBLE : versions → livres → chapitres → versets -->
+  <section id="view-bible">
+    <div id="bible-crumb" class="crumb hidden"><button id="bible-back">‹ Retour</button><span id="bible-where"></span></div>
+    <div id="bible-versions" class="list"><p class="waiting">Connexion au panneau du PC…</p></div>
+    <div id="bible-books" class="list hidden"></div>
+    <div id="bible-chapters" class="grid hidden"></div>
+    <div id="bible-verses" class="list hidden"></div>
+  </section>
+
+  <!-- CHANTS : recherche + liste → slides ; ajout -->
+  <section id="view-songs" class="hidden">
+    <div id="songs-home">
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="text" id="song-search" placeholder="Rechercher un chant…">
+        <button class="btn" id="btn-add-song" title="Ajouter un chant">+</button>
+      </div>
+      <div id="songs-list" class="list"><p class="waiting">Connexion au panneau du PC…</p></div>
+    </div>
+    <div id="song-detail" class="hidden">
+      <div class="crumb"><button id="song-back">‹ Retour</button><span id="song-title"></span></div>
+      <div id="song-slides" class="list"></div>
+    </div>
+    <div id="song-add" class="hidden">
+      <div class="crumb"><button id="add-back">‹ Annuler</button><span>Nouveau chant</span></div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <input type="text" id="add-title" placeholder="Titre du chant">
+        <textarea id="add-content" placeholder="Paroles — une ligne par ligne projetée, ligne vide entre les sections"></textarea>
+        <button class="btn" id="add-save">Ajouter (setlist + bibliothèque)</button>
+        <p id="add-msg" style="color:var(--muted); font-size:12px;"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SOUS-TITRES : afficher/masquer + éditer Libellé/Texte (sync temps réel avec le PC) -->
+  <section id="view-subs" class="hidden">
+    <h2>Sous-titres</h2>
+    <div id="subs-list" class="list"><p class="waiting">Connexion au panneau du PC…</p></div>
+  </section>
+
+  <!-- SETLIST -->
+  <section id="view-setlist" class="hidden">
+    <h2 id="setlist-title"></h2>
+    <div id="setlist-home" class="list"><p class="waiting">Connexion au panneau du PC…</p></div>
+    <div id="setlist-detail" class="hidden">
+      <div class="crumb"><button id="setlist-back">‹ Retour</button><span id="setlist-item-title"></span></div>
+      <div id="setlist-slides" class="list"></div>
+    </div>
+  </section>
+</main>
+
+<footer><button id="btn-clear">EFFACER L'ÉCRAN</button></footer>
+<div id="toast"></div>
+
+<!-- Slot occupé / erreurs bloquantes -->
+<div class="gate hidden" id="gate">
+  <div class="big" id="gate-title"></div>
+  <p id="gate-msg"></p>
+  <button class="btn" id="gate-retry">Réessayer</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Connexion ─────────────────────────────────────────────────────
+  var params = new URLSearchParams(location.search);
+  var PAIR = String(params.get('pair') || '').replace(/[^0-9a-zA-Z]/g, '').toUpperCase();
+  var WS_PORT = params.get('relayPort') || 5511;
+  var HOST = location.hostname || '127.0.0.1';
+  var CLIENT_ID = 'phone_' + Math.random().toString(36).slice(2, 10);
+
+  var ws = null, rejected = false, backoff = 400;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function setStatus(text, cls) {
+    $('status').textContent = text;
+    $('conn-dot').className = 'dot' + (cls ? ' ' + cls : '');
+  }
+
+  var toastTimer = null;
+  function toast(text) {
+    var el = $('toast');
+    el.textContent = text;
+    el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 1800);
+  }
+
+  // Enveloppe « élément + bouton ＋ (ajouter à la setlist) ».
+  function withAdd(mainEl, onAdd) {
+    var wrap = document.createElement('div');
+    wrap.className = 'with-add';
+    wrap.appendChild(mainEl);
+    var add = document.createElement('button');
+    add.className = 'addbtn';
+    add.textContent = '＋';
+    add.title = 'Ajouter à la setlist';
+    add.setAttribute('aria-label', 'Ajouter à la setlist');
+    add.addEventListener('click', function (e) { e.stopPropagation(); onAdd(); });
+    wrap.appendChild(add);
+    return wrap;
+  }
+
+  function gate(title, msg, canRetry) {
+    $('gate-title').textContent = title;
+    $('gate-msg').textContent = msg;
+    $('gate-retry').classList.toggle('hidden', !canRetry);
+    $('gate').classList.remove('hidden');
+  }
+  function ungate() { $('gate').classList.add('hidden'); }
+  $('gate-retry').addEventListener('click', function () { rejected = false; ungate(); connect(); });
+
+  function send(payload) {
+    if (!ws || ws.readyState !== 1) return;
+    ws.send(JSON.stringify({ type: 'RS_ENVELOPE', version: 1, senderId: CLIENT_ID, ts: Date.now(), token: PAIR, payload: payload }));
+  }
+
+  function connect() {
+    if (rejected) return;
+    if (!PAIR) { gate('Lien incomplet', "Ce lien ne contient pas le code d'appairage (?pair=…). Rescannez le QR ou recopiez le lien affiché par le serveur.", false); return; }
+    setStatus('Connexion…');
+    // wss:// when the page itself is served over HTTPS — a secure page cannot open an
+    // insecure ws:// socket (mixed content is blocked by the browser).
+    var wsProto = (location.protocol === 'https:') ? 'wss://' : 'ws://';
+    try { ws = new WebSocket(wsProto + HOST + ':' + WS_PORT); } catch (e) { retry(); return; }
+    ws.onopen = function () {
+      backoff = 400;
+      send({ type: 'HELLO', role: 'phone', clientId: CLIENT_ID, ts: Date.now() });
+      // Don't wait for PHONE_SLOT_OK to start pulling data — ask for the sync right away.
+      // If the slot is refused the gate takes over; otherwise the lists fill sooner.
+      requestSyncUntilAnswered();
+    };
+    ws.onclose = function (e) {
+      if (e && e.code === 4401) { rejected = true; gate('Code refusé', "Le serveur a refusé le code d'appairage de ce lien. Vérifiez le lien affiché par la fenêtre du serveur.", true); return; }
+      if (e && e.code === 4409) { rejected = true; gate('Déjà contrôlé', 'Un autre téléphone contrôle déjà la projection. Dès qu\'il se déconnecte, appuyez sur Réessayer pour reprendre la main.', true); return; }
+      setStatus('Déconnecté — reconnexion…', 'err');
+      retry();
+    };
+    ws.onmessage = function (event) {
+      var data = null;
+      try { data = JSON.parse(event.data); } catch (e) { return; }
+      if (!data || data.type !== 'RS_ENVELOPE' || !data.payload) return;
+      if (data.senderId === CLIENT_ID) return;
+      handle(data.payload);
+    };
+  }
+  function retry() { setTimeout(connect, backoff); backoff = Math.min(backoff * 1.6, 4000); }
+
+  // ── État ──────────────────────────────────────────────────────────
+  var sync = { bibleVersions: [], songs: [], setlist: [], setlistMeta: {}, subtitles: [], subtitleLiveId: null, subtitleLiveByOutput: {}, subtitleOutputs: [] };
+  var syncReceived = false, syncRetryTimer = null;
+  var subTarget = 'all'; // cible du play sous-titre depuis le téléphone : 'all' | 'obs' | 'remote_N'
+
+  // Le panneau peut se connecter APRÈS le téléphone (ou redémarrer) : la demande de
+  // synchronisation est renvoyée toutes les 3 s jusqu'à la première réponse, sinon la
+  // page resterait vide pour toujours.
+  function requestSyncUntilAnswered() {
+    if (syncReceived) return;
+    if (syncRetryTimer) clearInterval(syncRetryTimer);
+    send({ type: 'PHONE_SYNC_REQUEST' });
+    // Poll quickly at first so the lists appear as soon as the panel is reachable, instead
+    // of the phone sitting on an empty screen for seconds.
+    syncRetryTimer = setInterval(function () {
+      if (syncReceived || !ws || ws.readyState !== 1) { clearInterval(syncRetryTimer); syncRetryTimer = null; return; }
+      setStatus('Connecté — en attente du panneau…', 'on');
+      send({ type: 'PHONE_SYNC_REQUEST' });
+    }, 1000);
+  }
+  var bible = { version: '', books: [], book: null, chapter: 0, chapterIndex: -1, slides: [] };
+  var songSel = { i: -1, slides: [] };
+  var setlistSel = { i: -1, slides: [], isOpen: false };
+  var liveKey = ''; // "kind:i:page" de la slide actuellement en direct (vue de ce téléphone)
+
+  function handle(p) {
+    switch (p.type) {
+      case 'PHONE_SLOT_OK':
+        ungate();
+        setStatus('Connecté — vous avez la main', 'on');
+        requestSyncUntilAnswered();
+        break;
+      case 'PHONE_SYNC':
+        syncReceived = true;
+        setStatus('Connecté — vous avez la main', 'on');
+        sync = p; renderBibleVersions(); renderSongs(); renderSetlist(); renderSubtitles();
+        break;
+      case 'PHONE_BOOKS':
+        if (p.version === bible.version) { bible.books = p.books || []; renderBooks(); }
+        break;
+      case 'PHONE_BIBLE':
+        if (p.version === bible.version) { bible.chapterIndex = p.chapterIndex; bible.slides = p.slides || []; renderVerses(); }
+        break;
+      case 'PHONE_SONG':
+        if (p.i === songSel.i) { songSel.slides = p.slides || []; renderSongSlides(p.title); }
+        break;
+      case 'PHONE_SETLIST_ITEM':
+        if (p.i === setlistSel.i) { setlistSel.slides = p.slides || []; renderSetlistSlides(p.title); }
+        break;
+      case 'PHONE_ADDED':
+        toast(p.ok ? ('Ajouté à la setlist ✓' + (p.what ? '  ' + p.what : '')) : "Échec de l'ajout à la setlist");
+        break;
+      case 'PHONE_ADD_SONG_RESULT':
+        $('add-msg').textContent = p.ok ? 'Chant ajouté à la setlist et à la bibliothèque ✓' : "Échec de l'ajout.";
+        if (p.ok) { $('add-title').value = ''; $('add-content').value = ''; send({ type: 'PHONE_SYNC_REQUEST' }); }
+        break;
+      case 'UPDATE': {
+        // Retour visuel : ce qui est réellement en direct, d'où qu'il vienne.
+        var tmp = document.createElement('div'); tmp.innerHTML = String(p.text || '');
+        var live = (tmp.textContent || '').replace(/\s+/g, ' ').trim();
+        $('live-snippet').textContent = live ? ('LIVE  ' + live.slice(0, 60)) : '';
+        markLive();
+        break;
+      }
+      case 'CLEAR':
+        $('live-snippet').textContent = ''; liveKey = ''; markLive();
+        break;
+    }
+  }
+
+  // ── Projection ────────────────────────────────────────────────────
+  function project(kind, ref, pageIndex) {
+    var key = kind + ':' + (kind === 'bible' ? bible.chapterIndex : ref) + ':' + pageIndex;
+    // Tapping the slide that is ALREADY live clears the screen — same "click again to
+    // hide" as on the PC. The explicit "Effacer l'écran" button still works too.
+    if (key === liveKey) {
+      send({ type: 'PHONE_CLEAR' });
+      liveKey = '';
+      $('live-snippet').textContent = '';
+      markLive();
+      return;
+    }
+    var msg = { type: 'PHONE_PROJECT', kind: kind, pageIndex: pageIndex };
+    if (kind === 'bible') { msg.version = bible.version; msg.chapterIndex = bible.chapterIndex; }
+    else msg.i = ref;
+    send(msg);
+    liveKey = key;
+    markLive();
+  }
+  function markLive() {
+    document.querySelectorAll('.slide').forEach(function (el) {
+      el.classList.toggle('live', el.dataset.key === liveKey);
+    });
+  }
+  $('btn-clear').addEventListener('click', function () { send({ type: 'PHONE_CLEAR' }); $('live-snippet').textContent = ''; liveKey = ''; markLive(); });
+
+  // ── Fabrique de listes ────────────────────────────────────────────
+  function rowButton(label, tag, onTap) {
+    var b = document.createElement('button');
+    b.className = 'row';
+    if (tag) { var t = document.createElement('span'); t.className = 'tag'; t.textContent = tag; b.appendChild(t); }
+    var g = document.createElement('span'); g.className = 'grow'; g.textContent = label; b.appendChild(g);
+    b.addEventListener('click', onTap);
+    return b;
+  }
+  function slideButton(text, n, key, onTap) {
+    var b = document.createElement('button');
+    b.className = 'slide'; b.dataset.key = key;
+    var sn = document.createElement('span'); sn.className = 'n'; sn.textContent = n; b.appendChild(sn);
+    b.appendChild(document.createTextNode(text));
+    b.addEventListener('click', onTap);
+    if (key === liveKey) b.classList.add('live');
+    return b;
+  }
+
+  // ── BIBLE ─────────────────────────────────────────────────────────
+  function show(ids) {
+    ['bible-versions', 'bible-books', 'bible-chapters', 'bible-verses'].forEach(function (id) {
+      $(id).classList.toggle('hidden', ids.indexOf(id) === -1);
+    });
+    $('bible-crumb').classList.toggle('hidden', ids[0] === 'bible-versions');
+  }
+  function renderBibleVersions() {
+    var box = $('bible-versions'); box.innerHTML = '';
+    if (!sync.bibleVersions.length) { box.innerHTML = '<p style="color:var(--muted)">Aucune version de Bible chargée sur le PC principal.</p>'; }
+    sync.bibleVersions.forEach(function (v) {
+      box.appendChild(rowButton(v, 'BIBLE', function () {
+        bible.version = v; bible.books = [];
+        send({ type: 'PHONE_BOOKS_GET', version: v });
+        $('bible-where').textContent = v; show(['bible-books']);
+      }));
+    });
+    show(['bible-versions']);
+  }
+  function renderBooks() {
+    var box = $('bible-books'); box.innerHTML = '';
+    bible.books.forEach(function (bk) {
+      box.appendChild(rowButton(bk.name, bk.chapters + ' ch.', function () {
+        bible.book = bk; renderChapters();
+      }));
+    });
+  }
+  function renderChapters() {
+    var box = $('bible-chapters'); box.innerHTML = '';
+    for (var c = 1; c <= bible.book.chapters; c++) {
+      (function (ch) {
+        var b = document.createElement('button');
+        b.textContent = ch;
+        b.addEventListener('click', function () {
+          bible.chapter = ch; bible.slides = [];
+          send({ type: 'PHONE_BIBLE_GET', version: bible.version, book: bible.book.name, chapter: ch });
+          $('bible-where').textContent = bible.version + ' · ' + bible.book.name + ' ' + ch;
+          show(['bible-verses']);
+        });
+        box.appendChild(b);
+      })(c);
+    }
+    $('bible-where').textContent = bible.version + ' · ' + bible.book.name;
+    show(['bible-chapters']);
+  }
+  function renderVerses() {
+    var box = $('bible-verses'); box.innerHTML = '';
+    bible.slides.forEach(function (s, i) {
+      var slide = slideButton(s, bible.book.name + ' ' + bible.chapter + ' — page ' + (i + 1), 'bible:' + bible.chapterIndex + ':' + i, function () {
+        project('bible', null, i);
+      });
+      box.appendChild(withAdd(slide, function () {
+        send({ type: 'PHONE_ADD_TO_SETLIST', kind: 'bible', version: bible.version, chapterIndex: bible.chapterIndex, pageIndex: i });
+      }));
+    });
+  }
+  $('bible-back').addEventListener('click', function () {
+    if (!$('bible-verses').classList.contains('hidden')) { renderChapters(); }
+    else if (!$('bible-chapters').classList.contains('hidden')) { show(['bible-books']); $('bible-where').textContent = bible.version; }
+    else renderBibleVersions();
+  });
+
+  // ── CHANTS ────────────────────────────────────────────────────────
+  function renderSongs() {
+    var q = ($('song-search').value || '').toLowerCase();
+    var box = $('songs-list'); box.innerHTML = '';
+    sync.songs.filter(function (s) { return !q || s.title.toLowerCase().indexOf(q) !== -1; })
+      .forEach(function (s) {
+        var row = rowButton(s.title, null, function () {
+          songSel.i = s.i; songSel.slides = [];
+          send({ type: 'PHONE_SONG_GET', i: s.i });
+          $('songs-home').classList.add('hidden'); $('song-detail').classList.remove('hidden');
+        });
+        box.appendChild(withAdd(row, function () {
+          send({ type: 'PHONE_ADD_TO_SETLIST', kind: 'song', i: s.i });
+        }));
+      });
+  }
+  function renderSongSlides(title) {
+    $('song-title').textContent = title;
+    var box = $('song-slides'); box.innerHTML = '';
+    songSel.slides.forEach(function (s, i) {
+      box.appendChild(slideButton(s, 'Page ' + (i + 1), 'song:' + songSel.i + ':' + i, function () {
+        project('song', songSel.i, i);
+      }));
+    });
+  }
+  $('song-search').addEventListener('input', renderSongs);
+  $('song-back').addEventListener('click', function () { $('song-detail').classList.add('hidden'); $('songs-home').classList.remove('hidden'); });
+  $('btn-add-song').addEventListener('click', function () { $('songs-home').classList.add('hidden'); $('song-add').classList.remove('hidden'); $('add-msg').textContent = ''; });
+  $('add-back').addEventListener('click', function () { $('song-add').classList.add('hidden'); $('songs-home').classList.remove('hidden'); });
+  $('add-save').addEventListener('click', function () {
+    var title = $('add-title').value.trim(), content = $('add-content').value.trim();
+    if (!title || !content) { $('add-msg').textContent = 'Titre et paroles sont requis.'; return; }
+    send({ type: 'PHONE_ADD_SONG', title: title, content: content });
+    $('add-msg').textContent = 'Envoi…';
+  });
+
+  // ── SETLIST ───────────────────────────────────────────────────────
+  function renderSetlist() {
+    $('setlist-title').textContent = (sync.setlistMeta && sync.setlistMeta.title) ? sync.setlistMeta.title : 'Setlist';
+    var box = $('setlist-home'); box.innerHTML = '';
+    if (!sync.setlist.length) box.innerHTML = '<p style="color:var(--muted)">La setlist est vide.</p>';
+    sync.setlist.forEach(function (e) {
+      box.appendChild(rowButton(e.title, e.kind === 'bible' ? 'BIBLE' : 'CHANT', function () {
+        setlistSel.i = e.i; setlistSel.slides = [];
+        send({ type: 'PHONE_SETLIST_GET', i: e.i });
+        $('setlist-home').classList.add('hidden'); $('setlist-detail').classList.remove('hidden');
+      }));
+    });
+  }
+  function renderSetlistSlides(title) {
+    $('setlist-item-title').textContent = title;
+    var box = $('setlist-slides'); box.innerHTML = '';
+    setlistSel.slides.forEach(function (s, i) {
+      box.appendChild(slideButton(s, 'Page ' + (i + 1), 'setlist:' + setlistSel.i + ':' + i, function () {
+        project('setlist', setlistSel.i, i);
+      }));
+    });
+  }
+  $('setlist-back').addEventListener('click', function () { $('setlist-detail').classList.add('hidden'); $('setlist-home').classList.remove('hidden'); });
+
+  // ── SOUS-TITRES ───────────────────────────────────────────────────
+  // Affiche/masque les sous-titres créés sur le PC (avec leur animation) et édite Libellé/Texte.
+  // La synchro est bidirectionnelle : une modif ici part au PC (PHONE_SUB_EDIT), une modif au PC
+  // revient via PHONE_SYNC. On préserve la saisie en cours (focus + valeur) pour ne pas l'écraser.
+  var SUB_TYPE_LABEL = { theme: 'Thème', speaker: 'Orateur', officiant: 'Officiant', note: 'Note' };
+  var subEditTimers = {};
+  function sendSubEdit(id, label, value) {
+    if (subEditTimers[id]) clearTimeout(subEditTimers[id]);
+    subEditTimers[id] = setTimeout(function () { send({ type: 'PHONE_SUB_EDIT', id: id, label: label, value: value }); }, 350);
+  }
+  // Sous-titre live pour la cible courante ('all' → subtitleLiveId ; sinon subtitleLiveByOutput).
+  function subLiveIdForTarget() {
+    if (subTarget === 'all') return sync.subtitleLiveId || null;
+    return (sync.subtitleLiveByOutput && sync.subtitleLiveByOutput[subTarget]) || null;
+  }
+  function renderSubtitles() {
+    var box = $('subs-list'); if (!box) return;
+    // Préserve le champ en cours d'édition (id + champ + curseur + valeur tapée).
+    var act = document.activeElement, focusInfo = null;
+    if (act && box.contains(act) && act.dataset && act.dataset.subid) {
+      focusInfo = { id: act.dataset.subid, field: act.dataset.field, start: act.selectionStart, end: act.selectionEnd, value: act.value };
+    }
+    box.innerHTML = '';
+    // Sélecteur de CIBLE : Tous les écrans, ou un écran précis (play isolé).
+    var outs = sync.subtitleOutputs && sync.subtitleOutputs.length ? sync.subtitleOutputs : [{ id: 'all', name: 'Tous les écrans' }];
+    if (!outs.some(function (o) { return o.id === subTarget; })) subTarget = 'all';
+    var trow = document.createElement('div'); trow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px';
+    var tlab = document.createElement('span'); tlab.textContent = 'Cible'; tlab.style.cssText = 'font-size:12px;color:var(--muted);font-weight:600'; trow.appendChild(tlab);
+    var tsel = document.createElement('select'); tsel.style.flex = '1';
+    outs.forEach(function (o) { var op = document.createElement('option'); op.value = o.id; op.textContent = o.name; if (o.id === subTarget) op.selected = true; tsel.appendChild(op); });
+    tsel.addEventListener('change', function () { subTarget = tsel.value; renderSubtitles(); });
+    trow.appendChild(tsel); box.appendChild(trow);
+    var subs = sync.subtitles || [];
+    if (!subs.length) { var e = document.createElement('p'); e.style.color = 'var(--muted)'; e.textContent = 'Aucun sous-titre créé sur le PC.'; box.appendChild(e); return; }
+    var liveId = subLiveIdForTarget();
+    subs.forEach(function (s) {
+      var live = s.id === liveId;
+      var card = document.createElement('div'); card.className = 'subcard' + (live ? ' live' : '');
+      var head = document.createElement('div'); head.className = 'subhead';
+      var typ = document.createElement('div'); typ.className = 'subtype'; typ.textContent = SUB_TYPE_LABEL[s.type] || s.type; head.appendChild(typ);
+      var showBtn = document.createElement('button'); showBtn.className = 'subshow' + (live ? ' on' : ''); showBtn.textContent = live ? '■ Masquer' : '▶ Afficher';
+      showBtn.addEventListener('click', function () {
+        if (s.id === subLiveIdForTarget()) send({ type: 'PHONE_SUB_HIDE', target: subTarget });
+        else send({ type: 'PHONE_SUB_SHOW', id: s.id, target: subTarget });
+      });
+      head.appendChild(showBtn); card.appendChild(head);
+      var ll = document.createElement('label'); ll.textContent = 'Libellé'; card.appendChild(ll);
+      var li = document.createElement('input'); li.type = 'text'; li.value = s.label || ''; li.dataset.subid = s.id; li.dataset.field = 'label'; card.appendChild(li);
+      var vl = document.createElement('label'); vl.textContent = 'Texte'; card.appendChild(vl);
+      var ta = document.createElement('textarea'); ta.value = s.value || ''; ta.dataset.subid = s.id; ta.dataset.field = 'value'; card.appendChild(ta);
+      li.addEventListener('input', function () { sendSubEdit(s.id, li.value, ta.value); });
+      ta.addEventListener('input', function () { sendSubEdit(s.id, li.value, ta.value); });
+      box.appendChild(card);
+    });
+    if (focusInfo) {
+      var sel = box.querySelector('[data-subid="' + focusInfo.id + '"][data-field="' + focusInfo.field + '"]');
+      if (sel) { sel.value = focusInfo.value; sel.focus(); try { sel.setSelectionRange(focusInfo.start, focusInfo.end); } catch (e) {} }
+    }
+  }
+
+  // ── Onglets ───────────────────────────────────────────────────────
+  [['tab-bible', 'view-bible'], ['tab-songs', 'view-songs'], ['tab-setlist', 'view-setlist'], ['tab-subs', 'view-subs']].forEach(function (pair) {
+    $(pair[0]).addEventListener('click', function () {
+      ['tab-bible', 'tab-songs', 'tab-setlist', 'tab-subs'].forEach(function (t) { $(t).classList.toggle('on', t === pair[0]); });
+      ['view-bible', 'view-songs', 'view-setlist', 'view-subs'].forEach(function (v) { $(v).classList.toggle('hidden', v !== pair[1]); });
+    });
+  });
+
+  connect();
+})();
+</script>
+</body>
+</html>
