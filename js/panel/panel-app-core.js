@@ -3,7 +3,7 @@
     const HOST_MODE_OBS = 'obs';
     const HOST_MODE_VMIX = 'vmix';
     const HOST_MODE_STANDALONE = 'standalone';
-    const BSP_GITHUB_REPO_URL = 'https://github.com/Johnbatey/bible-song-pro-obs';
+    const BSP_GITHUB_REPO_URL = 'https://github.com/elite-marketing-e/Bible-Song';
     const BSP_GITHUB_ISSUES_URL = `${BSP_GITHUB_REPO_URL}/issues`;
     const BSP_CONTACT_URL = 'https://www.instagram.com/johnsonolakotan';
     const BSP_LEGACY_LOCAL_FEEDBACK_API_URL = 'http://127.0.0.1:8787/api/github-feedback';
