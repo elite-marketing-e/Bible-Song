@@ -1,7 +1,7 @@
 {
   "name": "eeam-biblesong-pro",
   "productName": "EEAM_BibleSong Pro",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Bible Song Pro — projection de versets bibliques et de chants sur plusieurs sorties (Live/OBS, écrans connectés, écrans distants, téléphone).",
   "author": "Bible Song Pro",
   "license": "SEE LICENSE IN LICENSE",
@@ -15,7 +15,8 @@
     "bump": "npm version patch --no-git-tag-version",
     "bump:minor": "npm version minor --no-git-tag-version",
     "release": "npm version patch --no-git-tag-version && electron-builder",
-    "release:publish": "npm version patch --no-git-tag-version && electron-builder --publish always"
+    "release:publish": "npm version patch --no-git-tag-version && electron-builder --publish always",
+    "publish": "electron-builder --publish always"
   },
   "build": {
     "appId": "org.eeam.biblesongpro.app",
