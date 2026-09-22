@@ -14,13 +14,21 @@
     "dist:dir": "electron-builder --dir",
     "bump": "npm version patch --no-git-tag-version",
     "bump:minor": "npm version minor --no-git-tag-version",
-    "release": "npm version patch --no-git-tag-version && electron-builder"
+    "release": "npm version patch --no-git-tag-version && electron-builder",
+    "release:publish": "npm version patch --no-git-tag-version && electron-builder --publish always"
   },
   "build": {
     "appId": "org.eeam.biblesongpro.app",
     "productName": "EEAM_BibleSong Pro",
     "asar": false,
     "icon": "build/icon.png",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "elite-marketing-e",
+        "repo": "Bible-Song"
+      }
+    ],
     "files": [
       "electron/**/*",
       "server/**/*",
@@ -60,6 +68,9 @@
       "createStartMenuShortcut": true,
       "shortcutName": "EEAM_BibleSong Pro"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "electron": "^31.7.7",

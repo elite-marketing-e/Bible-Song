@@ -232,13 +232,49 @@ function serializeDisplays() {
   }));
 }
 
+// ── Mise à jour MANUELLE (electron-updater + GitHub Releases) ───────
+// Pas d'auto-update : l'utilisateur clique « Rechercher une mise à jour » dans Settings.
+// checkForUpdates → (si dispo) downloadUpdate → quitAndInstall. Les événements sont renvoyés
+// au panneau. electron-updater est optionnel : si absent, le bouton l'indique.
+let bspUpdaterAvailable = false;
+function setupAutoUpdater() {
+  let autoUpdater;
+  try { autoUpdater = require('electron-updater').autoUpdater; } catch (_) { bspUpdaterAvailable = false; return; }
+  bspUpdaterAvailable = true;
+  autoUpdater.autoDownload = false;             // on télécharge sur action explicite
+  autoUpdater.autoInstallOnAppQuit = true;
+  const send = (state, payload) => {
+    try { if (panelWin && !panelWin.isDestroyed()) panelWin.webContents.send('bsp:update-event', Object.assign({ state }, payload || {})); } catch (_) {}
+  };
+  autoUpdater.on('checking-for-update', () => send('checking'));
+  autoUpdater.on('update-available', (info) => send('available', { version: info && info.version, releaseNotes: info && info.releaseNotes }));
+  autoUpdater.on('update-not-available', (info) => send('none', { version: info && info.version }));
+  autoUpdater.on('error', (err) => send('error', { message: String((err && err.message) || err) }));
+  autoUpdater.on('download-progress', (p) => send('downloading', { percent: Math.round((p && p.percent) || 0) }));
+  autoUpdater.on('update-downloaded', (info) => send('downloaded', { version: info && info.version }));
+
+  ipcMain.handle('bsp:update-check', async () => {
+    try { const r = await autoUpdater.checkForUpdates(); return { ok: true, version: r && r.updateInfo && r.updateInfo.version }; }
+    catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+  });
+  ipcMain.handle('bsp:update-download', async () => {
+    try { await autoUpdater.downloadUpdate(); return { ok: true }; }
+    catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+  });
+  ipcMain.handle('bsp:update-install', () => {
+    try { setImmediate(() => autoUpdater.quitAndInstall()); return { ok: true }; }
+    catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+  });
+}
+
 // ── IPC (pont pour le panneau) ──────────────────────────────────────
 function registerIpc() {
   ipcMain.handle('bsp:list-displays', () => serializeDisplays());
   ipcMain.handle('bsp:open-output', (_e, outputId, opts) => openOutputWindow(outputId, opts || {}));
   ipcMain.handle('bsp:close-output', (_e, outputId) => closeOutputWindow(outputId));
   ipcMain.handle('bsp:list-open-outputs', () => Array.from(outputWindows.keys()));
-  ipcMain.handle('bsp:info', () => ({ baseUrl: BASE_URL, httpPort: HTTP_PORT, wsPort: WS_PORT, version: app.getVersion() }));
+  ipcMain.handle('bsp:info', () => ({ baseUrl: BASE_URL, httpPort: HTTP_PORT, wsPort: WS_PORT, version: app.getVersion(), updater: bspUpdaterAvailable }));
+  setupAutoUpdater();
 }
 
 // ── Cycle de vie ────────────────────────────────────────────────────

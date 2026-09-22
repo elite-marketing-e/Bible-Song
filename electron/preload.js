@@ -24,3 +24,18 @@ contextBridge.exposeInMainWorld('bspDesktop', {
   listOpenOutputs: () => ipcRenderer.invoke('bsp:list-open-outputs'),
   info: () => ipcRenderer.invoke('bsp:info')
 });
+
+// API attendue par le panneau (Settings → Updates) : MISE À JOUR MANUELLE via electron-updater.
+// L'UI existante (bspIsDesktopMode / bspInitUpdateUi) détecte window.BSPDesktop.
+contextBridge.exposeInMainWorld('BSPDesktop', {
+  isElectron: true,
+  checkForUpdates: () => ipcRenderer.invoke('bsp:update-check'),
+  downloadUpdate: () => ipcRenderer.invoke('bsp:update-download'),
+  installUpdateNow: () => ipcRenderer.invoke('bsp:update-install'),
+  // cb reçoit { state:'checking'|'available'|'none'|'downloading'|'downloaded'|'error', version, percent, message }.
+  onUpdateStatus: (cb) => {
+    const h = (_e, data) => { try { cb(data); } catch (_) {} };
+    ipcRenderer.on('bsp:update-event', h);
+    return () => ipcRenderer.removeListener('bsp:update-event', h);
+  }
+});
