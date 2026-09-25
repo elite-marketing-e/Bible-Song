@@ -511,6 +511,19 @@
       }
     }
     function bspSelectSubtitle(id) { bspSubtitleSelectedId = id; bspRenderSubtitleLibrary(); }
+    // Réordonne la LISTE : place le sous-titre `fromId` à l'emplacement de `toId` (glisser-déposer).
+    function bspReorderSubtitle(fromId, toId) {
+      if (!fromId || !toId || fromId === toId) return;
+      const fi = bspSubtitles.findIndex((x) => x && x.id === fromId);
+      const ti = bspSubtitles.findIndex((x) => x && x.id === toId);
+      if (fi === -1 || ti === -1) return;
+      const [moved] = bspSubtitles.splice(fi, 1);
+      const ti2 = bspSubtitles.findIndex((x) => x && x.id === toId);
+      bspSubtitles.splice(fi < ti ? ti2 + 1 : ti2, 0, moved); // vers le bas → après la cible ; vers le haut → avant
+      bspSubtitlesPersist();
+      bspRenderSubtitleLibrary();
+      if (typeof bspPhoneScheduleSyncBroadcast === 'function') bspPhoneScheduleSyncBroadcast();
+    }
 
     // ── Rendu de la carte lower-third (réutilisé par l'aperçu ; l'étape 2 le réutilisera pour
     //    l'affichage réel). Retourne un élément positionné dans un « stage » 16:9. ──
@@ -776,6 +789,19 @@
       bspSubtitles.forEach((sub) => {
         const row = document.createElement('div');
         row.className = 'bsp-st-row' + (sub.id === bspSubtitleSelectedId ? ' is-active' : '');
+        // ── Glisser-déposer pour réordonner la liste (poignée ⠿ ; ne gêne pas le clic-sélection) ──
+        row.dataset.subId = sub.id;
+        row.draggable = false;
+        row.addEventListener('dragstart', (e) => { try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', sub.id); } catch (_) {} row.style.opacity = '0.45'; });
+        row.addEventListener('dragend', () => { row.style.opacity = ''; row.style.boxShadow = ''; row.draggable = false; });
+        row.addEventListener('dragover', (e) => { e.preventDefault(); try { e.dataTransfer.dropEffect = 'move'; } catch (_) {} row.style.boxShadow = 'inset 0 2px 0 var(--accent,#3b82f6)'; });
+        row.addEventListener('dragleave', () => { row.style.boxShadow = ''; });
+        row.addEventListener('drop', (e) => { e.preventDefault(); row.style.boxShadow = ''; let from = ''; try { from = e.dataTransfer.getData('text/plain'); } catch (_) {} bspReorderSubtitle(from, sub.id); });
+        const grip = document.createElement('span');
+        grip.className = 'bsp-st-grip'; grip.textContent = '⠿'; grip.title = bspSubtitleT('subtitle_seg_drag', 'Glisser pour réordonner');
+        grip.style.cssText = 'flex:none;cursor:grab;color:#7d8ba6;font-size:15px;line-height:1;user-select:none';
+        grip.addEventListener('mousedown', () => { row.draggable = true; });
+        grip.addEventListener('mouseup', () => { row.draggable = false; });
         const dot = document.createElement('span');
         dot.className = 'dot';
         dot.style.background = (sub.colors && sub.colors.accent) || '#FF2D55';
@@ -790,7 +816,7 @@
         del.className = 'act del'; del.textContent = '✕'; del.title = bspSubtitleT('common_delete', 'Delete');
         del.onclick = (e) => { e.stopPropagation(); bspDeleteSubtitle(sub.id); };
         row.onclick = () => bspSelectSubtitle(sub.id);
-        row.appendChild(dot); row.appendChild(txt); row.appendChild(dup); row.appendChild(del);
+        row.appendChild(grip); row.appendChild(dot); row.appendChild(txt); row.appendChild(dup); row.appendChild(del);
         listEl.appendChild(row);
       });
       // Éditeur
