@@ -208,6 +208,13 @@
         .bsp-fx-empty{color:#8a9bb8;font-size:13px;text-align:center;padding:14px}
         .bsp-fx-foot{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:14px 18px;border-top:1px solid rgba(255,255,255,.08)}
         .bsp-fx-note{font-size:11px;color:#8a9bb8}
+        /* Confirmation PROPRE à la modale presets : au-dessus d'elle (son overlay est z-index 10050,
+           le confirm partagé .modal-overlay n'est qu'à 1000 et passait DERRIÈRE). */
+        .bsp-fx-confirm{position:fixed;inset:0;z-index:10060;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);padding:20px}
+        .bsp-fx-confirm__card{width:min(400px,94vw);background:var(--panel,#1b2130);color:var(--text,#e8edf6);border:1px solid rgba(255,255,255,.14);border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.55);padding:18px}
+        .bsp-fx-confirm__title{font-size:15px;font-weight:800;margin:0 0 8px}
+        .bsp-fx-confirm__msg{font-size:13px;color:#c7d2e6;margin:0 0 16px;line-height:1.45}
+        .bsp-fx-confirm__row{display:flex;gap:8px;justify-content:flex-end}
       `;
       const st = document.createElement('style');
       st.id = 'bsp-fx-styles';
@@ -225,6 +232,28 @@
 
     let bspFxWorkingOutput = '';
     let bspFxWorkingKind = 'bible';
+
+    // Confirmation rendue DANS l'overlay des presets (donc toujours au-dessus de lui).
+    function bspFxConfirm(title, message, onConfirm) {
+      const host = document.getElementById('bsp-fx-overlay') || document.body;
+      const layer = document.createElement('div');
+      layer.className = 'bsp-fx-confirm';
+      const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      layer.innerHTML = `
+        <div class="bsp-fx-confirm__card" role="dialog" aria-modal="true">
+          <h4 class="bsp-fx-confirm__title">${esc(title)}</h4>
+          <p class="bsp-fx-confirm__msg">${esc(message)}</p>
+          <div class="bsp-fx-confirm__row">
+            <button class="bsp-fx-btn ghost" data-act="cancel">Annuler</button>
+            <button class="bsp-fx-btn danger" data-act="ok">Supprimer</button>
+          </div>
+        </div>`;
+      const close = () => layer.remove();
+      layer.addEventListener('mousedown', (e) => { if (e.target === layer) close(); });
+      layer.querySelector('[data-act="cancel"]').onclick = close;
+      layer.querySelector('[data-act="ok"]').onclick = () => { close(); if (typeof onConfirm === 'function') onConfirm(); };
+      host.appendChild(layer);
+    }
 
     function bspOpenOutputPresetsModal() {
       bspOutputPresetsInjectStyles();
@@ -337,11 +366,8 @@
         if (delBtn) delBtn.onclick = () => {
           const p = bspOutputPresets.find(x => x.id === id);
           const nm = p ? p.name : '';
-          if (typeof showConfirm === 'function') {
-            showConfirm('Supprimer le preset', 'Supprimer définitivement le preset « ' + nm + ' » ?', () => { bspOutputPresetDelete(id); bspRenderOutputPresetsModal(); });
-          } else {
-            bspOutputPresetDelete(id); bspRenderOutputPresetsModal();
-          }
+          bspFxConfirm('Supprimer le preset', 'Supprimer définitivement le preset « ' + nm + ' » ?',
+            () => { bspOutputPresetDelete(id); bspRenderOutputPresetsModal(); });
         };
       });
     }
