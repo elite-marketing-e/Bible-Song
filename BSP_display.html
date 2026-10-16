@@ -211,7 +211,7 @@
     // Marqueur de build VISIBLE : permet de vérifier que c'est bien le dernier code qui
     // tourne (et non une version en cache OBS/Electron). Affiché 6 s en bas à gauche au
     // chargement, loggé en console, et repris dans l'overlay debug.
-    const BSP_BUILD = 'BUILD-17 · 2026-09-21 (sous-titres : fond de scène plein écran + masque le fond du contenu)';
+    const BSP_BUILD = 'BUILD-18 · 2026-10-16 (play isolé des sous-titres : reste affiché jusqu\'au Stop, plus chassé par les UPDATE du verset Live)';
     // Le tampon de build VERT n'apparaît plus automatiquement sur les écrans (demandé : sorties
     // propres). Il reste loggé en console et repris dans l'overlay debug (touche « d ») pour
     // vérifier au besoin que c'est bien le dernier code qui tourne.
@@ -556,6 +556,12 @@
     // ── Sous-titres (overlay lower-third) : messages SUBTITLE + enchaînement avec verset/chant ──
     // Utilise les fonctions de js/panel/subtitles.js (bspSubtitleRenderStage/PlaySequence).
     let bspSubActive = null;
+    // Le sous-titre actif est-il un PLAY ISOLÉ (ciblé sur CETTE sortie) ? Un play isolé doit
+    // RESTER affiché jusqu'à un Stop explicite : il ne doit PAS être chassé par les UPDATE de
+    // contenu (le verset/chant reste « Live » et continue d'être poussé vers cette sortie —
+    // battement, resync, toute action Live — ce qui le faisait redisparaître). Un sous-titre
+    // global (Live, sans cible) garde l'enchaînement normal verset↔sous-titre.
+    let bspSubActiveTargeted = false;
     function bspSubFadeContent(hide) {
       // Sur <body> : masque le texte ET les couches de fond (hors #display-container).
       document.body.classList.toggle('bsp-sub-hide-content', !!hide);
@@ -570,7 +576,7 @@
     }
     function bspSubHideActive(then) {
       const overlay = document.getElementById('subtitle-overlay');
-      const s = bspSubActive; bspSubActive = null;
+      const s = bspSubActive; bspSubActive = null; bspSubActiveTargeted = false;
       const finish = () => { if (overlay) overlay.innerHTML = ''; bspSubFadeContent(false); if (then) then(); };
       if (overlay && s && typeof bspSubtitlePlaySequence === 'function') {
         const card = (typeof bspSubtitleCardEl === 'function') ? bspSubtitleCardEl(overlay) : (overlay.firstElementChild && overlay.firstElementChild.firstElementChild);
@@ -583,10 +589,11 @@
       }
       finish();
     }
-    function bspDisplaySubtitle(action, sub) {
+    function bspDisplaySubtitle(action, sub, isolated) {
       if (action === 'show' && sub) {
         const overlay = document.getElementById('subtitle-overlay'); if (overlay) overlay.innerHTML = '';
         bspSubActive = sub;
+        bspSubActiveTargeted = !!isolated;                         // play isolé → persiste jusqu'au Stop
         bspSubFadeContent(true);                                   // le verset/chant disparaît (fondu)
         setTimeout(() => { if (bspSubActive === sub) bspSubShowNow(sub); }, 300); // puis le sous-titre entre
       } else if (action === 'hide') {
@@ -615,7 +622,9 @@
             if (d.target && typeof BSP_OUTPUT_ID !== 'undefined' && d.target !== BSP_OUTPUT_ID) break;
             // ROUTAGE PAR SORTIE : cet écran applique SA variante si elle existe, sinon la base.
             const mineSub = (d.subByOutput && typeof BSP_OUTPUT_ID !== 'undefined' && d.subByOutput[BSP_OUTPUT_ID]) ? d.subByOutput[BSP_OUTPUT_ID] : d.sub;
-            bspDisplaySubtitle(d.action, mineSub);
+            // Play isolé = message ciblé sur une sortie (d.target). On passe l'info au display
+            // pour que ce sous-titre reste affiché malgré les UPDATE de contenu (cf. UPDATE).
+            bspDisplaySubtitle(d.action, mineSub, !!d.target);
             break;
           }
           case 'UPDATE': {
@@ -625,9 +634,12 @@
             // Per-output blank (remote screen play/Stop): this output's content is hidden
             // while others carry on. Connection stays open.
             if (up && up.__blankOutput) { clearDisplay({ fade: true }); break; }
-            // Enchaînement sous-titre → contenu : si un sous-titre est affiché, on le fait sortir
-            // (animation inverse) PUIS on applique le nouveau verset/chant.
-            if (bspSubActive) { bspSubHideActive(() => applyUpdateWithThrottle(up)); }
+            // Enchaînement sous-titre → contenu : si un sous-titre GLOBAL (Live) est affiché, on
+            // le fait sortir (animation inverse) PUIS on applique le nouveau verset/chant.
+            // Un PLAY ISOLÉ (bspSubActiveTargeted) doit RESTER jusqu'au Stop : on rafraîchit le
+            // contenu caché EN DESSOUS (il reste masqué par .bsp-sub-hide-content) sans chasser
+            // le sous-titre — sinon le verset Live qui continue de pousser le ferait redisparaître.
+            if (bspSubActive && !bspSubActiveTargeted) { bspSubHideActive(() => applyUpdateWithThrottle(up)); }
             else applyUpdateWithThrottle(up);
             break;
           }

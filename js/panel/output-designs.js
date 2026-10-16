@@ -21,6 +21,25 @@
 
     const BSP_OUTPUT_DESIGNS_STORAGE_KEY = 'bsp-output-designs-v1';
 
+    // Clés pilotées par les contrôles LIVE (barre du bas : picker de lignes + mode FS/LT/SD) :
+    // pour la sortie Live/OBS, la source de vérité est TOUJOURS ces contrôles, jamais une
+    // surcharge stockée. Une surcharge `linesPerPage`/`activeRatio` sur 'obs' (accumulée par
+    // d'anciennes versions) ÉPINGLE la sortie et lui fait ignorer la barre du bas — d'où
+    // « les lignes 1/2 ne passent pas » et « changer le mode FS/LT/SD bouleverse la projection ».
+    // On les retire de la surcharge 'obs' (les écrans gardent leurs surcharges propres).
+    const BSP_OBS_LIVE_DRIVEN_KEYS = [
+      'linesPerPage', 'linesPerPage__bible', 'linesPerPage__songs',
+      'activeRatio', 'activeRatio__bible', 'activeRatio__songs'
+    ];
+    function bspStripObsLiveDrivenKeys(design) {
+      if (!design || typeof design !== 'object') return design;
+      let changed = false;
+      BSP_OBS_LIVE_DRIVEN_KEYS.forEach((k) => {
+        if (Object.prototype.hasOwnProperty.call(design, k)) { delete design[k]; changed = true; }
+      });
+      return changed;
+    }
+
     function bspOutputDesignsPersist() {
       try {
         localStorage.setItem(BSP_OUTPUT_DESIGNS_STORAGE_KEY, JSON.stringify(bspOutputDesigns));
@@ -34,6 +53,11 @@
         bspOutputDesigns = (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
       } catch (_) {
         bspOutputDesigns = {};
+      }
+      // Migration auto-réparatrice : purge toute surcharge mode/lignes épinglée sur la sortie Live.
+      if (bspOutputDesigns[BSP_DEFAULT_OUTPUT_ID] && bspStripObsLiveDrivenKeys(bspOutputDesigns[BSP_DEFAULT_OUTPUT_ID])) {
+        if (!Object.keys(bspOutputDesigns[BSP_DEFAULT_OUTPUT_ID]).length) delete bspOutputDesigns[BSP_DEFAULT_OUTPUT_ID];
+        bspOutputDesignsPersist();
       }
     }
 
@@ -50,6 +74,11 @@
         delete bspOutputDesigns[outputId];
       } else {
         bspOutputDesigns[outputId] = { ...(bspOutputDesigns[outputId] || {}), ...partialProfile };
+      }
+      // Sortie Live : lignes + mode viennent de la barre du bas, jamais d'une surcharge.
+      if (outputId === BSP_DEFAULT_OUTPUT_ID && bspOutputDesigns[outputId]) {
+        bspStripObsLiveDrivenKeys(bspOutputDesigns[outputId]);
+        if (!Object.keys(bspOutputDesigns[outputId]).length) delete bspOutputDesigns[outputId];
       }
       bspOutputDesignsPersist();
       if (typeof isLive !== 'undefined' && isLive && typeof livePointer !== 'undefined' && livePointer) {
@@ -94,6 +123,8 @@
       Object.keys(override || {}).forEach((k) => {
         if (override[k] != null) clean[k] = override[k];
       });
+      // Sortie Live : lignes + mode pilotés par la barre du bas, jamais épinglés par une surcharge.
+      if (outputId === BSP_DEFAULT_OUTPUT_ID) bspStripObsLiveDrivenKeys(clean);
       if (Object.keys(clean).length) bspOutputDesigns[outputId] = clean;
       else delete bspOutputDesigns[outputId];
       bspOutputDesignsPersist();
