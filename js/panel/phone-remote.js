@@ -31,10 +31,13 @@
         const name = ch.book || '';
         if (!name) return;
         if (!byName[name]) {
-          byName[name] = { name, chapters: 0 };
+          byName[name] = { name, chapters: 0, nums: [] };
           books.push(byName[name]);
         }
         byName[name].chapters++;
+        // Numéros RÉELS (Bibles partielles : NT seul, chapitres manquants…) — le téléphone ne
+        // suppose plus 1..N.
+        byName[name].nums.push(String(ch.chapter == null ? byName[name].chapters : ch.chapter));
       });
       return books;
     }

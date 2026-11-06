@@ -611,18 +611,18 @@
   function renderChapters() {
     var box = $('bible-chapters'); box.innerHTML = '';
     if (!bible.book) { $('bible-chapters-wrap').classList.add('hidden'); return; }
-    for (var c = 1; c <= bible.book.chapters; c++) {
-      (function (ch) {
-        var b = document.createElement('button'); b.type = 'button'; b.textContent = ch;
-        if (ch === bible.chapter) b.className = 'on';
-        b.addEventListener('click', function () { bible.fromSearch = ''; openChapter(ch, -1); });
-        box.appendChild(b);
-      })(c);
-    }
+    var nums = (bible.book.nums && bible.book.nums.length) ? bible.book.nums : null;
+    if (!nums) { nums = []; for (var c = 1; c <= bible.book.chapters; c++) nums.push(String(c)); }
+    nums.forEach(function (ch) {
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = ch;
+      if (String(ch) === String(bible.chapter)) b.className = 'on';
+      b.addEventListener('click', function () { bible.fromSearch = ''; openChapter(ch, -1); });
+      box.appendChild(b);
+    });
     $('bible-chapters-wrap').classList.remove('hidden');
   }
   function openChapter(ch, focusPage) {
-    bible.chapter = Number(ch) || 1; bible.slides = []; bible.chapterIndex = -1;
+    bible.chapter = String(ch == null ? '1' : ch); bible.slides = []; bible.chapterIndex = -1;
     bible.focusPage = (focusPage == null) ? -1 : focusPage;
     renderChapters();
     $('bible-where').textContent = bible.book.name + ' ' + bible.chapter;
@@ -708,7 +708,7 @@
     bible.book = bk; renderBookPicker();
     $('bible-search').value = ''; runBibleSearch();
     bible.fromSearch = query || '';
-    openChapter(Number(r.chapter) || 1, r.pageIndex);
+    openChapter(r.chapter || '1', r.pageIndex);
   }
 
   // ── CHANTS ────────────────────────────────────────────────────────
