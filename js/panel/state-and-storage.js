@@ -3,7 +3,7 @@
     // DERNIER code, et non une instance Electron ouverte AVANT les correctifs (ou un serveur
     // 5510 réutilisé). Dans la console du panneau (Ctrl+Shift+I → Console), taper
     // BSP_PANEL_BUILD, ou lire la ligne « [BSP] PANEL BUILD-… » au chargement.
-    try { window.BSP_PANEL_BUILD = 'PANEL BUILD-46 · 2026-10-16 · presets de sortie (.eeamfx) + sortie Live : lignes/mode FS-LT-SD pilotés par la barre du bas'; console.log('[BSP] ' + window.BSP_PANEL_BUILD); } catch (_) {}
+    try { window.BSP_PANEL_BUILD = 'PANEL BUILD-47 · 2026-11-06 · perf annulation (plus de copie des Bibles) + sous-titres : photo, adaptation du texte, sections repliables'; console.log('[BSP] ' + window.BSP_PANEL_BUILD); } catch (_) {}
 
     // ===== DB =====
     function openDb() {

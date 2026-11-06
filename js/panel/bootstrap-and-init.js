@@ -1345,14 +1345,42 @@
       renderCustomFontList();
     }
 
+    // ── Instantanés LÉGERS pour l'annulation ──
+    // Avant : JSON deep-clone de TOUTES les Bibles chargées (plusieurs Mo chacune) + de tous les
+    // chants à CHAQUE action (~45 appelants : setlist, sous-titres, édition…), ×50 gardés en
+    // mémoire → des dizaines de Mo copiés par clic et des centaines de Mo retenus : c'était la
+    // cause principale de la lenteur générale (le ramasse-miettes tournait sans arrêt).
+    //  - Chants : copie superficielle par chant (les textes, immuables, sont partagés).
+    //  - Bibles : seulement les NOMS des versions ({ nom: null } = sentinelle du chargement à la
+    //    demande, cf. ensureBibleLoaded) — les versets restent dans IndexedDB. Aucune mémoire.
+    function bspSnapshotSongs(list) {
+      return Array.isArray(list) ? list.map(x => (x && typeof x === 'object') ? { ...x } : x) : [];
+    }
+    function bspSnapshotBibleNames(map) {
+      const out = {};
+      Object.keys(map || {}).forEach(k => { out[k] = null; });
+      return out;
+    }
+    // Ne touche à la carte des Bibles que si l'ENSEMBLE des versions diffère (import/suppression
+    // annulé) ; les versions encore présentes gardent leurs versets chargés, les autres sont
+    // rechargées à la demande.
+    function bspRestoreBibleNames(snap) {
+      const want = Object.keys(snap || {});
+      const have = Object.keys(bibles || {});
+      if (want.length === have.length && want.every(k => k in bibles)) return;
+      const next = {};
+      want.forEach(k => { next[k] = (bibles && Array.isArray(bibles[k])) ? bibles[k] : null; });
+      bibles = next;
+    }
+
     function saveState(label) {
       // Every meaningful mutation passes through here — the ideal spot to keep the
       // control phone in step with the panel (debounced + no-op when unchanged).
       if (typeof bspPhoneScheduleSyncBroadcast === 'function') bspPhoneScheduleSyncBroadcast();
       const state = {
         label: label || '',
-        songs: JSON.parse(JSON.stringify(songs)),
-        bibles: JSON.parse(JSON.stringify(bibles)),
+        songs: bspSnapshotSongs(songs),
+        bibles: bspSnapshotBibleNames(bibles),
         schedule: JSON.parse(JSON.stringify(schedule)),
         setlistMeta: { title: (setlistMeta && setlistMeta.title) || '', comment: (setlistMeta && setlistMeta.comment) || '' },
         subtitles: (typeof bspSubtitlesExport === 'function') ? bspSubtitlesExport() : (Array.isArray(bspSubtitles) ? JSON.parse(JSON.stringify(bspSubtitles)) : []),
@@ -1383,8 +1411,8 @@
       if (historyIndex > 0) {
         historyIndex--;
         const state = historyStates[historyIndex];
-        songs = JSON.parse(JSON.stringify(state.songs));
-        bibles = JSON.parse(JSON.stringify(state.bibles));
+        songs = bspSnapshotSongs(state.songs);
+        bspRestoreBibleNames(state.bibles);
         schedule = JSON.parse(JSON.stringify(state.schedule));
         _undoRestoreScenes(state);
         renderSongs();
@@ -1401,8 +1429,8 @@
       if (historyIndex < historyStates.length - 1) {
         historyIndex++;
         const state = historyStates[historyIndex];
-        songs = JSON.parse(JSON.stringify(state.songs));
-        bibles = JSON.parse(JSON.stringify(state.bibles));
+        songs = bspSnapshotSongs(state.songs);
+        bspRestoreBibleNames(state.bibles);
         schedule = JSON.parse(JSON.stringify(state.schedule));
         _undoRestoreScenes(state);
         renderSongs();

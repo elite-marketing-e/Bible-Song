@@ -3737,6 +3737,15 @@
     .bsp-st-hex { width:96px; flex:none; background:#0b0f16; color:#eaf0f8; border:1px solid rgba(255,255,255,.11); border-radius:8px; padding:7px 9px; font-size:12px; font-family:ui-monospace,monospace; text-transform:uppercase; letter-spacing:.4px; }
     .bsp-st-subblock { grid-column:1/-1; border:1px solid rgba(255,255,255,.08); border-radius:11px; padding:11px 12px; background:rgba(255,255,255,.02); }
     .bsp-st-subblock .bh { display:flex; align-items:center; gap:7px; margin-bottom:9px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; color:#a8b6ff; }
+    /* Sections et sous-blocs REPLIABLES (clic sur le titre ; état mémorisé) */
+    .bsp-st-shead, .bsp-st-subblock .bh { cursor:pointer; user-select:none; }
+    .bsp-st-shead .chev, .bsp-st-subblock .bh .chev { margin-left:auto; width:7px; height:7px; border-right:2px solid currentColor; border-bottom:2px solid currentColor; transform:rotate(45deg); transition:transform .18s ease; opacity:.75; flex:none; }
+    .bsp-st-section.collapsed .bsp-st-shead { margin-bottom:0; }
+    .bsp-st-section.collapsed .bsp-st-shead .chev, .bsp-st-subblock.collapsed .bh .chev { transform:rotate(-45deg); }
+    .bsp-st-section.collapsed > .bsp-st-grid { display:none; }
+    .bsp-st-subblock.collapsed > :not(.bh) { display:none; }
+    .bsp-st-subblock.collapsed .bh { margin-bottom:0; }
+    .bsp-st-shead:hover, .bsp-st-subblock .bh:hover { color:#cdd6ea; }
     .bsp-st-grip { cursor:grab; color:#7d8ba6; font-size:15px; user-select:none; }
   </style>
   <div id="subtitleModal" class="modal-overlay">

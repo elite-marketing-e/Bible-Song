@@ -289,14 +289,30 @@
     }
 
     // Persistance / (dé)sérialisation — appelées par bootstrap (boot) et config-io (export/import).
+    // `_src` (data URL de diffusion) ne doit JAMAIS vivre dans les modèles du panneau : on purge
+    // ceux collés par d'anciennes versions (photo figée dans l'aperçu + fichiers alourdis).
+    function bspSubtitleStripBaked(s) {
+      if (!s || typeof s !== 'object') return s;
+      if (s.image) delete s.image._src;
+      if (s.scene) delete s.scene._src;
+      if (s.outputs && typeof s.outputs === 'object') Object.keys(s.outputs).forEach((id) => {
+        const o = s.outputs[id]; if (o && o.image) delete o.image._src; if (o && o.scene) delete o.scene._src;
+      });
+      return s;
+    }
     function bspSubtitlesLoad(list) {
-      bspSubtitles = Array.isArray(list) ? list.map(bspNormalizeSubtitle).filter(Boolean) : [];
+      bspSubtitles = Array.isArray(list) ? list.map(bspNormalizeSubtitle).filter(Boolean).map(bspSubtitleStripBaked) : [];
     }
     function bspSubtitlesExport() {
-      return Array.isArray(bspSubtitles) ? JSON.parse(JSON.stringify(bspSubtitles)) : [];
+      return Array.isArray(bspSubtitles) ? JSON.parse(JSON.stringify(bspSubtitles)).map(bspSubtitleStripBaked) : [];
     }
+    // Appelé à CHAQUE cran d'un curseur de l'éditeur : le point d'annulation (saveState, qui
+    // photographie aussi setlist/chants) n'est posé qu'en FIN de geste (500 ms sans changement).
+    // Le faire à chaque cran gelait l'interface → curseurs « instables » qui n'avançaient plus.
+    let bspSubtitlesUndoTimer = 0;
     function bspSubtitlesPersist() {
-      if (typeof saveState === 'function') saveState();
+      if (bspSubtitlesUndoTimer) clearTimeout(bspSubtitlesUndoTimer);
+      bspSubtitlesUndoTimer = setTimeout(() => { bspSubtitlesUndoTimer = 0; if (typeof saveState === 'function') saveState(); }, 500);
       if (typeof saveToStorageDebounced === 'function') saveToStorageDebounced();
     }
 
@@ -377,7 +393,11 @@
     // relais). L'affichage (BSP_display) fait l'enchaînement : fondu du verset/chant → sous-titre,
     // et inverse au retour du contenu.
     // Bake les data URL image/scène d'un sous-titre normalisé (diffusion).
+    // Travaille sur une COPIE : bspSubtitleMergeForOutput renvoie le modèle D'ORIGINE quand la sortie
+    // n'a pas de surcharge — cuire `_src` dessus collait la data URL au modèle (sauvegardée, et
+    // prioritaire dans l'aperçu : changer de photo n'avait plus d'effet).
     function bspSubtitleBakeSrc(m) {
+      try { m = JSON.parse(JSON.stringify(m)); } catch (_) { m = Object.assign({}, m); }
       if (m.image && m.image.on && m.image.ref && typeof bspResolveMediaRef === 'function') m.image._src = bspResolveMediaRef(m.image.ref) || '';
       if (m.scene && m.scene.type === 'image' && m.scene.ref && typeof bspResolveMediaRef === 'function') m.scene._src = bspResolveMediaRef(m.scene.ref) || '';
       return m;
@@ -589,7 +609,9 @@
       // derrière la photo réglable, VIDE = transparent (PNG détourés).
       const img = sub.image || {};
       if (img.on) {
-        const src = img._src || ((typeof bspResolveMediaRef === 'function' && img.ref) ? bspResolveMediaRef(img.ref) : '');
+        // Panneau : la photo CHOISIE (réf. banque) prime ; `_src` ne sert qu'à l'affichage, qui n'a
+        // pas la banque. (Un `_src` resté collé faisait que changer de photo ne changeait rien.)
+        const src = ((typeof bspResolveMediaRef === 'function' && img.ref) ? bspResolveMediaRef(img.ref) : '') || img._src || '';
         const sz = Math.max(20, (img.size || 120) * scale);
         const bg = img.bg ? img.bg : 'transparent';
         const media = src
@@ -618,7 +640,7 @@
       if (scene.type === 'solid') bg = `background:${scene.color};`;
       else if (scene.type === 'gradient') bg = `background:linear-gradient(${scene.gradAngle || 0}deg, ${scene.gradFrom}, ${scene.gradTo});`;
       else if (scene.type === 'image') {
-        const src = scene._src || ((typeof bspResolveMediaRef === 'function' && scene.ref) ? bspResolveMediaRef(scene.ref) : '');
+        const src = ((typeof bspResolveMediaRef === 'function' && scene.ref) ? bspResolveMediaRef(scene.ref) : '') || scene._src || '';
         if (src) bg = `background:url("${src}") center/${scene.fit === 'contain' ? 'contain' : 'cover'} no-repeat;`;
       }
       if (!bg) return '';
@@ -632,6 +654,57 @@
       if (!stageEl) return null;
       const host = stageEl.querySelector('[data-sub-card]');
       return host ? host.firstElementChild : null;
+    }
+
+    // Sections repliables de l'éditeur : clic sur le titre. L'état est mémorisé (localStorage) pour
+    // survivre aux re-rendus de l'éditeur (fréquents) et aux redémarrages.
+    const BSP_ST_COLLAPSE_KEY = 'bsp-st-collapsed-v1';
+    let bspStCollapsed = null;
+    function bspStCollapsedMap() {
+      if (bspStCollapsed) return bspStCollapsed;
+      try { bspStCollapsed = JSON.parse(localStorage.getItem(BSP_ST_COLLAPSE_KEY) || '{}') || {}; } catch (_) { bspStCollapsed = {}; }
+      return bspStCollapsed;
+    }
+    function bspSubtitleMakeCollapsible(container, head, key) {
+      if (!container || !head) return;
+      const chev = document.createElement('span'); chev.className = 'chev'; chev.setAttribute('aria-hidden', 'true');
+      head.appendChild(chev);
+      head.setAttribute('role', 'button'); head.tabIndex = 0;
+      const apply = (c) => { container.classList.toggle('collapsed', !!c); head.setAttribute('aria-expanded', c ? 'false' : 'true'); };
+      apply(bspStCollapsedMap()[key]);
+      const toggle = () => {
+        const map = bspStCollapsedMap(); map[key] = !map[key]; if (!map[key]) delete map[key];
+        try { localStorage.setItem(BSP_ST_COLLAPSE_KEY, JSON.stringify(map)); } catch (_) {}
+        apply(map[key]);
+      };
+      head.addEventListener('click', toggle);
+      head.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    }
+
+    // Adapte la carte quand l'espace manque (texte long, grande taille, écran étroit) :
+    //   1) passe à la ligne (si « Retour à la ligne » est désactivé, le texte débordait et était
+    //      COUPÉ : augmenter la taille semblait « ne rien faire ») ;
+    //   2) seulement si ça ne tient toujours pas, réduit la police par paliers — avec un PLANCHER
+    //      à 60 % de la taille réglée, pour ne jamais devenir illisible.
+    // Mesures en px LOGIQUES du canvas 1920×1080 (offsetWidth/scrollWidth ignorent la mise à
+    // l'échelle CSS). Stage détaché/caché → mesures nulles → rien n'est touché.
+    function bspSubtitleFitCard(host, edge) {
+      const card = host && host.firstElementChild;
+      if (!card || !card.offsetWidth) return;
+      const availW = 1920 - (edge || 0) * 2;
+      const availH = Math.round(1080 * 0.5);
+      const boxes = [card].concat(Array.from(card.querySelectorAll('div')));
+      const overflowing = () => card.offsetWidth > availW + 1 || card.offsetHeight > availH + 1 ||
+        boxes.some((b) => b.scrollWidth > b.clientWidth + 2);
+      if (!overflowing()) return;
+      boxes.forEach((b) => { if (b.style.whiteSpace === 'nowrap') b.style.whiteSpace = 'normal'; });
+      if (!overflowing()) return;
+      const texts = Array.from(card.querySelectorAll('[data-sub-el="label"],[data-sub-el="value"]'));
+      const orig = texts.map((el) => parseFloat(el.style.fontSize) || 0);
+      for (let k = 0.92; k >= 0.6; k -= 0.08) {
+        texts.forEach((el, i) => { if (orig[i]) el.style.fontSize = (orig[i] * k).toFixed(1) + 'px'; });
+        if (!overflowing()) return;
+      }
     }
 
     // Rend un sous-titre dans un « stage » 16:9 : canvas logique 1920×1080 (mêmes px que
@@ -663,6 +736,7 @@
       host.innerHTML = bspSubtitleCardHtml(sub);
       canvas.appendChild(host);
       stageEl.appendChild(canvas);
+      bspSubtitleFitCard(host, EDGE);
       const fit = () => { const w = stageEl.clientWidth || 1; canvas.style.transform = `scale(${w / 1920})`; };
       fit();
       requestAnimationFrame(fit);
@@ -907,6 +981,7 @@
         const h = document.createElement('div');
         h.className = 'bsp-st-shead';
         h.textContent = titleText;
+        bspSubtitleMakeCollapsible(card, h, 'sec:' + key);
         const g = document.createElement('div');
         g.className = 'bsp-st-grid';
         card.appendChild(h); card.appendChild(g);
@@ -1143,6 +1218,7 @@
         blk.className = 'bsp-st-subblock';
         blk.style.cssText += 'display:grid;grid-template-columns:1fr 1fr;gap:9px 12px;align-items:end';
         const tt = document.createElement('div'); tt.className = 'bh'; tt.style.gridColumn = '1/-1'; tt.textContent = title; blk.appendChild(tt);
+        bspSubtitleMakeCollapsible(blk, tt, 'fmt:' + key);
         blk.appendChild(field(bspSubtitleT('subtitle_field_size', 'Taille'), numRow(el.size, 6, 200, 1, 'px', (n) => { el.size = n; commit(false); })));
         blk.appendChild(field(bspSubtitleT('subtitle_field_style_b', 'Gras / Italique'), toggleBtns([
           ['B', !!el.bold, () => { el.bold = !el.bold; bspRenderSubtitleLibrary(); commit(false); }, bspSubtitleT('subtitle_bold', 'Gras')],
