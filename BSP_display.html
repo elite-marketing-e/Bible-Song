@@ -211,7 +211,7 @@
     // Marqueur de build VISIBLE : permet de vérifier que c'est bien le dernier code qui
     // tourne (et non une version en cache OBS/Electron). Affiché 6 s en bas à gauche au
     // chargement, loggé en console, et repris dans l'overlay debug.
-    const BSP_BUILD = 'BUILD-18 · 2026-10-16 (play isolé des sous-titres : reste affiché jusqu\'au Stop, plus chassé par les UPDATE du verset Live)';
+    const BSP_BUILD = 'BUILD-19 · 2026-11-06 (écran : effacer = la fenêtre disparaît en fondu au lieu de rester noire)';
     // Le tampon de build VERT n'apparaît plus automatiquement sur les écrans (demandé : sorties
     // propres). Il reste loggé en console et repris dans l'overlay debug (touche « d ») pour
     // vérifier au besoin que c'est bien le dernier code qui tourne.
@@ -400,7 +400,22 @@
       return true;
     }
 
+    // Fenêtre d'ÉCRAN Electron (jamais le Live 'obs') : « effacer » fait disparaître la fenêtre en
+    // fondu (on voit ce qu'il y a derrière) au lieu de laisser son fond noir ; elle réapparaît dès
+    // qu'un contenu ou un sous-titre arrive. N'envoie l'IPC que sur CHANGEMENT d'état (les UPDATE
+    // peuvent arriver ~30/s). Sans Electron (navigateur, OBS) : no-op.
+    let bspWinVisible = true;
+    function bspSetWindowVisible(visible, fadeMs) {
+      const api = window.bspDesktop;
+      if (!api || typeof api.setOutputVisible !== 'function') return;
+      if (typeof BSP_OUTPUT_ID === 'undefined' || BSP_OUTPUT_ID === 'obs') return;
+      if (bspWinVisible === !!visible) return;
+      bspWinVisible = !!visible;
+      try { api.setOutputVisible(bspWinVisible, fadeMs); } catch (_) {}
+    }
+
     function applyUpdateWithThrottle(data) {
+      if (data && !data.__blankOutput) bspSetWindowVisible(true, 350);
       const now = performance.now();
       if (now - lastUpdateTime < UPDATE_THROTTLE) {
         if (rafId) cancelAnimationFrame(rafId);
@@ -577,7 +592,14 @@
     function bspSubHideActive(then) {
       const overlay = document.getElementById('subtitle-overlay');
       const s = bspSubActive; bspSubActive = null; bspSubActiveTargeted = false;
-      const finish = () => { if (overlay) overlay.innerHTML = ''; bspSubFadeContent(false); if (then) then(); };
+      const finish = () => {
+        if (overlay) overlay.innerHTML = '';
+        bspSubFadeContent(false);
+        if (then) { then(); return; }
+        // Plus de sous-titre ET aucun contenu dessous → l'écran disparaît (comme un effacement).
+        const txt = document.getElementById('text-container');
+        if (!txt || !txt.textContent.trim()) bspSetWindowVisible(false, 300);
+      };
       if (overlay && s && typeof bspSubtitlePlaySequence === 'function') {
         const card = (typeof bspSubtitleCardEl === 'function') ? bspSubtitleCardEl(overlay) : (overlay.firstElementChild && overlay.firstElementChild.firstElementChild);
         if (card) {
@@ -594,6 +616,7 @@
         const overlay = document.getElementById('subtitle-overlay'); if (overlay) overlay.innerHTML = '';
         bspSubActive = sub;
         bspSubActiveTargeted = !!isolated;                         // play isolé → persiste jusqu'au Stop
+        bspSetWindowVisible(true, 300);                            // écran effacé → réapparaît pour le sous-titre
         bspSubFadeContent(true);                                   // le verset/chant disparaît (fondu)
         setTimeout(() => { if (bspSubActive === sub) bspSubShowNow(sub); }, 300); // puis le sous-titre entre
       } else if (action === 'hide') {
@@ -3254,6 +3277,8 @@
       const durationSec = clamp(Number(opts.duration ?? currentState.transitionDuration ?? 0.3), 0, 10);
       bspLastAppliedSig = null; // après un effacement, ré-afficher le même contenu doit redessiner
       cancelPendingClear();
+      // Écran : la fenêtre disparaît en fondu avec le contenu (sauf si un sous-titre reste affiché).
+      if (!bspSubActive) bspSetWindowVisible(false, fade ? Math.round(durationSec * 1000) : 0);
       const animTargets = [elements.txt, elements.customMainBar, elements.customRefBox, elements.customVersionBar];
       animTargets.forEach((el) => {
         if (!el) return;

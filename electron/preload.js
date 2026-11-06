@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('bspDesktop', {
   openOutput: (outputId, opts) => ipcRenderer.invoke('bsp:open-output', outputId, opts),
   closeOutput: (outputId) => ipcRenderer.invoke('bsp:close-output', outputId),
   listOpenOutputs: () => ipcRenderer.invoke('bsp:list-open-outputs'),
+  // Page d'affichage d'un ÉCRAN : rend sa fenêtre visible/invisible en fondu (effacer = disparaître).
+  setOutputVisible: (visible, fadeMs) => ipcRenderer.send('bsp:output-visibility', !!visible, Number(fadeMs) || 0),
   info: () => ipcRenderer.invoke('bsp:info')
 });
 

@@ -168,6 +168,7 @@ function openOutputWindow(outputId, opts = {}) {
   let win = outputWindows.get(outputId);
   if (win && !win.isDestroyed()) {
     if (opts.displayId != null) moveToDisplay(win, opts.displayId);
+    bspFadeWindow(win, 1, 0); // une fenêtre « effacée » (invisible) redevient visible à la réouverture
     win.show();
     win.focus();
     return { ok: true, reused: true, outputId };
@@ -201,6 +202,38 @@ function openOutputWindow(outputId, opts = {}) {
   win.on('closed', () => { outputWindows.delete(outputId); });
   outputWindows.set(outputId, win);
   return { ok: true, reused: false, outputId };
+}
+
+// ── Visibilité des fenêtres d'ÉCRAN (fondu d'opacité) ───────────────
+// Sur un écran de projection, « effacer » doit faire DISPARAÎTRE la fenêtre (on voit ce qu'il
+// y a derrière : bureau ou autre appli), pas laisser un écran noir (fond de fenêtre #000).
+// On anime l'opacité de la fenêtre au lieu de hide()/show() : la fenêtre reste en plein écran
+// sur son moniteur. À 0, les clics la traversent (setIgnoreMouseEvents) ; elle redevient visible
+// dès que l'affichage reçoit un contenu. Demandé par la page d'affichage via preload.
+const bspWinFades = new WeakMap();
+function bspFadeWindow(win, target, ms) {
+  if (!win || win.isDestroyed()) return;
+  const prev = bspWinFades.get(win);
+  if (prev) { clearInterval(prev); bspWinFades.delete(win); }
+  const to = target > 0 ? 1 : 0;
+  if (to === 1) win.setIgnoreMouseEvents(false);
+  const from = win.getOpacity();
+  const dur = Math.max(0, Math.min(10000, Number(ms) || 0));
+  const done = () => { if (!win.isDestroyed() && to === 0) win.setIgnoreMouseEvents(true); };
+  if (!dur || from === to) { win.setOpacity(to); done(); return; }
+  const t0 = Date.now();
+  const iv = setInterval(() => {
+    if (win.isDestroyed()) { clearInterval(iv); return; }
+    const k = Math.min(1, (Date.now() - t0) / dur);
+    const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; // ease-in-out
+    win.setOpacity(from + (to - from) * e);
+    if (k >= 1) { clearInterval(iv); bspWinFades.delete(win); done(); }
+  }, 16);
+  bspWinFades.set(win, iv);
+}
+function outputIdOfWindow(win) {
+  for (const [id, w] of outputWindows) if (w === win) return id;
+  return null;
 }
 
 function moveToDisplay(win, displayId) {
@@ -273,6 +306,13 @@ function registerIpc() {
   ipcMain.handle('bsp:open-output', (_e, outputId, opts) => openOutputWindow(outputId, opts || {}));
   ipcMain.handle('bsp:close-output', (_e, outputId) => closeOutputWindow(outputId));
   ipcMain.handle('bsp:list-open-outputs', () => Array.from(outputWindows.keys()));
+  // Fondu de visibilité demandé par une page d'affichage (écrans uniquement, jamais le Live 'obs').
+  ipcMain.on('bsp:output-visibility', (e, visible, fadeMs) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    const id = outputIdOfWindow(win);
+    if (!id || id === 'obs') return;
+    bspFadeWindow(win, visible ? 1 : 0, fadeMs);
+  });
   ipcMain.handle('bsp:info', () => ({ baseUrl: BASE_URL, httpPort: HTTP_PORT, wsPort: WS_PORT, version: app.getVersion(), updater: bspUpdaterAvailable }));
   setupAutoUpdater();
 }
