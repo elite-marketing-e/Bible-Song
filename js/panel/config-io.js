@@ -208,6 +208,121 @@
       }
     }
 
+    // ── Chants seuls (.eeamsong) ───────────────────────────────────────────────
+    // Bibliothèque de chants SEULE, format dédié (kind:'song') : ne se mélange ni avec une
+    // configuration ni avec une setlist. Champs dérivables (normalizedLines, searchableText)
+    // retirés pour alléger le fichier — ils sont recalculés à l'import.
+    async function bspCollectSongRecords() {
+      let recs = [];
+      try { await openDb(); recs = (await dbGetAll(STORE_SONGS)) || []; } catch (_) {}
+      if (!recs.length && Array.isArray(songs)) recs = songs.map(coerceSongRecord).filter(Boolean);
+      return recs
+        .filter(r => r && r.id && (r.title || r.text))
+        .map(r => { const o = { ...r }; delete o.normalizedLines; delete o.searchableText; return o; });
+    }
+
+    function bspBuildSongsPayload(records) {
+      return {
+        app: 'Bible Song Pro',
+        kind: 'song',
+        version: BSP_CONFIG_FILE_VERSION,
+        exportedAt: new Date().toISOString(),
+        data: { songs: records }
+      };
+    }
+
+    async function bspExportSongs() {
+      try {
+        const recs = await bspCollectSongRecords();
+        if (!recs.length) { showToast(t('cfg_songs_empty')); return; }
+        const json = JSON.stringify(bspBuildSongsPayload(recs), null, 2);
+        await bspSaveJsonFile(json, `EEAM-chants_${recs.length}_${bspTimestampForFilename()}.eeamsong`, { description: 'EEAM Song library', ext: '.eeamsong' });
+      } catch (err) {
+        console.error('[BSP] songs export failed', err);
+        showToast(t('cfg_save_failed'));
+      }
+    }
+
+    function bspSongTitleKey(title) {
+      return String(title || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    // Fusionne des chants dans la bibliothèque — NON destructif, « le plus récent gagne ».
+    // Correspondance par id, sinon par titre. Nouveau → ajouté. Existant au contenu différent →
+    // mis à jour SAUF si la version locale est plus récente (updatedAt). Une mise à jour garde
+    // l'id LOCAL : pas de doublon en base, et les liens setlist⇄chant (par id) restent valides.
+    // Réutilisable (import .eeamsong, synchro cloud). Retourne { added, updated, same }.
+    async function bspMergeSongRecords(incoming) {
+      const res = { added: 0, updated: 0, same: 0 };
+      if (!Array.isArray(incoming) || !Array.isArray(songs)) return res;
+      const byId = new Map();
+      const byTitle = new Map();
+      const index = (s, i) => {
+        if (!s) return;
+        if (s.id) byId.set(s.id, i);
+        const k = bspSongTitleKey(s.title);
+        if (k && !byTitle.has(k)) byTitle.set(k, i);
+      };
+      songs.forEach(index);
+      const toPut = [];
+      incoming.forEach((raw) => {
+        const rec = coerceSongRecord(raw);
+        if (!rec) return;
+        const idx = byId.has(rec.id) ? byId.get(rec.id) : byTitle.get(bspSongTitleKey(rec.title));
+        if (idx == null) {
+          toPut.push(rec);
+          songs.push(hydrateSongFromRecord(rec));
+          index(songs[songs.length - 1], songs.length - 1);
+          res.added++;
+          return;
+        }
+        const cur = songs[idx];
+        const sameContent = String(cur.title || '') === String(rec.title || '') &&
+          String(cur.text || cur.content || '') === String(rec.text || '');
+        const curAt = Number(cur.updatedAt || 0);
+        const inAt = Number((raw && raw.updatedAt) || 0);
+        if (sameContent || (inAt && curAt && inAt <= curAt)) { res.same++; return; }
+        rec.id = cur.id;
+        rec.createdAt = cur.createdAt || rec.createdAt;
+        toPut.push(rec);
+        songs[idx] = hydrateSongFromRecord(rec);
+        res.updated++;
+      });
+      if (toPut.length) {
+        await openDb();
+        await dbPutMany(STORE_SONGS, toPut);
+        if (typeof bspSortSongsAlphabetically === 'function') bspSortSongsAlphabetically();
+        if (typeof renderSongs === 'function') renderSongs();
+        if (typeof saveState === 'function') saveState();
+        if (typeof saveToStorageDebounced === 'function') saveToStorageDebounced();
+      }
+      return res;
+    }
+
+    function bspTriggerSongsImport() {
+      const el = document.getElementById('bsp-songs-import-file');
+      if (el) { el.value = ''; el.click(); }
+    }
+
+    async function bspHandleSongsImport(input) {
+      const file = input && input.files && input.files[0];
+      if (!file) return;
+      try {
+        const obj = bspParseImportedJson(await file.text());
+        if (!obj) { showToast(t('cfg_invalid_file')); return; }
+        // ENCODAGE DÉDIÉ : n'accepte QUE des chants (.eeamsong).
+        if (obj.kind && obj.kind !== 'song') { showToast(t('cfg_wrong_kind_songs')); return; }
+        const list = obj.data.songs;
+        if (!Array.isArray(list) || !list.length) { showToast(t('cfg_no_songs')); return; }
+        const r = await bspMergeSongRecords(list);
+        showToast(t('cfg_songs_imported')
+          .replace('{added}', String(r.added)).replace('{updated}', String(r.updated)).replace('{same}', String(r.same)));
+      } catch (err) {
+        console.error('[BSP] songs import failed', err);
+        showToast(t('cfg_invalid_file'));
+      }
+    }
+
     // Writes imported bible/song records back into IndexedDB and rehydrates the in-memory
     // copies, so versions survive a reload instead of living only for the session.
     // Merges rather than wipes: importing a config must not destroy libraries the file

@@ -2267,6 +2267,8 @@
                 <button class="btn" style="width:100%" onclick="bspTriggerSetlistImport()">⬆️ <span data-i18n="cfg_import_setlist">Import setlist only</span></button>
                 <button class="btn" style="width:100%" onclick="bspSubtitlesExportPreset()">💬 <span data-i18n="cfg_export_subtitles">Export subtitles only</span></button>
                 <button class="btn" style="width:100%" onclick="bspSubtitlesImportPreset()">⬆️ <span data-i18n="cfg_import_subtitles">Import subtitles only</span></button>
+                <button class="btn" style="width:100%" onclick="bspExportSongs()">🎶 <span data-i18n="cfg_export_songs">Export songs only</span></button>
+                <button class="btn" style="width:100%" onclick="bspTriggerSongsImport()">⬆️ <span data-i18n="cfg_import_songs">Import songs only</span></button>
               </div>
             </div>
             <div class="settings-field" style="margin-bottom:12px">
@@ -2386,6 +2388,7 @@
             <input type="file" id="backup-import-file" accept=".json" style="display:none" onchange="handleBackupImport(this)">
             <input type="file" id="bsp-config-import-file" accept=".eeamconf,.json" style="display:none" onchange="bspHandleConfigImport(this)">
             <input type="file" id="bsp-setlist-import-file" accept=".eeamset,.json" style="display:none" onchange="bspHandleSetlistImport(this)">
+            <input type="file" id="bsp-songs-import-file" accept=".eeamsong,.json" style="display:none" onchange="bspHandleSongsImport(this)">
           </div>
         </div>
         <!-- Tab: Themes -->
