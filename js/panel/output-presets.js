@@ -198,8 +198,13 @@
         .bsp-fx-btn:hover{filter:brightness(1.08)}
         .bsp-fx-list{display:flex;flex-direction:column;gap:8px}
         .bsp-fx-item{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 10px}
-        .bsp-fx-item__name{flex:1;min-width:0;font-weight:700;font-size:13px;background:transparent;border:1px solid transparent;color:var(--text,#e8edf6);border-radius:6px;padding:4px 6px}
-        .bsp-fx-item__name:focus{border-color:rgba(255,255,255,.2);background:var(--panel2,#121722);outline:none}
+        .bsp-fx-item__name{flex:1;min-width:0;font-weight:700;font-size:13px;background:var(--panel2,#121722);border:1px solid rgba(255,255,255,.14);color:var(--text,#e8edf6);border-radius:6px;padding:6px 8px}
+        .bsp-fx-item__name:hover{border-color:rgba(255,255,255,.26)}
+        .bsp-fx-item__name:focus{border-color:var(--accent,#3b82f6);background:var(--panel2,#121722);outline:none}
+        .bsp-fx-iconbtn svg,.bsp-fx-btn svg{display:block}
+        .bsp-fx-iconbtn.danger{color:#ff9d9d;border-color:rgba(220,60,60,.35);background:rgba(220,60,60,.12)}
+        .bsp-fx-iconbtn.danger:hover{background:rgba(220,60,60,.2)}
+        .bsp-fx-btn.icon{display:inline-flex;align-items:center;gap:7px}
         .bsp-fx-badge{font-size:10px;font-weight:800;letter-spacing:.04em;padding:3px 7px;border-radius:999px;text-transform:uppercase}
         .bsp-fx-badge.bible{background:rgba(59,130,246,.2);color:#9ac3ff}
         .bsp-fx-badge.songs{background:rgba(168,85,247,.22);color:#d6b2ff}
@@ -232,6 +237,18 @@
 
     let bspFxWorkingOutput = '';
     let bspFxWorkingKind = 'bible';
+
+    // Icônes monochromes (SVG stroke, viewBox 24) — cohérentes avec le reste de l'app.
+    function bspFxIcon(name, size) {
+      const paths = {
+        rename: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+        export: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+        import: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+        trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>'
+      };
+      const s = size || 16;
+      return '<svg viewBox="0 0 24 24" width="' + s + '" height="' + s + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (paths[name] || '') + '</svg>';
+    }
 
     // Confirmation rendue DANS l'overlay des presets (donc toujours au-dessus de lui).
     function bspFxConfirm(title, message, onConfirm) {
@@ -290,10 +307,11 @@
         ? `<div class="bsp-fx-list">` + bspOutputPresets.map(p => `
             <div class="bsp-fx-item" data-id="${esc(p.id)}">
               <span class="bsp-fx-badge ${p.kind === 'songs' ? 'songs' : 'bible'}">${p.kind === 'songs' ? 'Chants' : 'Bible'}</span>
-              <input class="bsp-fx-item__name" value="${esc(p.name)}" data-act="rename" />
+              <input class="bsp-fx-item__name" value="${esc(p.name)}" data-act="rename" title="Cliquez pour renommer" />
+              <button class="bsp-fx-iconbtn" data-act="renamebtn" title="Renommer">${bspFxIcon('rename')}</button>
               <button class="bsp-fx-btn" data-act="apply" title="Appliquer à la sortie choisie ci-dessus">Appliquer</button>
-              <button class="bsp-fx-iconbtn" data-act="export" title="Exporter (.eeamfx)">⤓</button>
-              <button class="bsp-fx-iconbtn" data-act="delete" title="Supprimer">🗑</button>
+              <button class="bsp-fx-iconbtn" data-act="export" title="Exporter ce preset (.eeamfx)">${bspFxIcon('export')}</button>
+              <button class="bsp-fx-iconbtn danger" data-act="delete" title="Supprimer">${bspFxIcon('trash')}</button>
             </div>`).join('') + `</div>`
         : `<div class="bsp-fx-empty">Aucun preset pour l'instant. Capture le design d'une sortie ci-dessus, ou importe un fichier .eeamfx.</div>`;
 
@@ -322,8 +340,8 @@
           <div class="bsp-fx-foot">
             <span class="bsp-fx-note">${bspOutputPresets.length} preset(s) · stockés en local</span>
             <div class="bsp-fx-row">
-              <button class="bsp-fx-btn ghost" data-act="import">⤒ Importer .eeamfx</button>
-              <button class="bsp-fx-btn ghost" data-act="exportall">⤓ Exporter tout</button>
+              <button class="bsp-fx-btn ghost icon" data-act="import">${bspFxIcon('import')} Importer .eeamfx</button>
+              <button class="bsp-fx-btn ghost icon" data-act="exportall">${bspFxIcon('export')} Exporter tout</button>
               <button class="bsp-fx-btn" data-act="close">Fermer</button>
             </div>
           </div>
@@ -351,9 +369,17 @@
         const id = row.getAttribute('data-id');
         const nameInput = row.querySelector('[data-act="rename"]');
         if (nameInput) {
-          nameInput.onchange = () => bspOutputPresetRename(id, nameInput.value);
-          nameInput.onkeydown = (e) => { if (e.key === 'Enter') nameInput.blur(); };
+          const commit = () => {
+            if (bspOutputPresetRename(id, nameInput.value) && typeof showToast === 'function') showToast('Preset renommé');
+          };
+          nameInput.onchange = commit;
+          nameInput.onkeydown = (e) => {
+            if (e.key === 'Enter') nameInput.blur();
+            if (e.key === 'Escape') { const p = bspOutputPresets.find(x => x.id === id); nameInput.value = p ? p.name : nameInput.value; nameInput.blur(); }
+          };
         }
+        const renameBtn = row.querySelector('[data-act="renamebtn"]');
+        if (renameBtn && nameInput) renameBtn.onclick = () => { nameInput.focus(); nameInput.select(); };
         const applyBtn = row.querySelector('[data-act="apply"]');
         if (applyBtn) applyBtn.onclick = () => {
           const ok = bspOutputPresetApply(id, bspFxWorkingOutput);
