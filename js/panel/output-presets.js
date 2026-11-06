@@ -11,33 +11,56 @@
     // bspScreenDesignBaseForKind, bspKindEffective/bspScreenEffective, bspReplaceOutputDesign.
 
     let bspOutputPresets = [];
-    const BSP_OUTPUT_PRESETS_STORAGE_KEY = 'bsp-output-presets-v1';
+    const BSP_OUTPUT_PRESETS_STORAGE_KEY = 'bsp-output-presets-v1'; // ancien stockage (migration)
+    const BSP_OUTPUT_PRESETS_IDB_KEY = 'outputPresets';               // STORE_STATE, keyPath 'key'
     const BSP_OUTPUT_PRESET_FILE_KIND = 'output-preset'; // marqueur validé à l'import
 
+    // Stockés en IndexedDB : un fond « upload » (data URL) peut peser des Mo, ce qui ferait
+    // déborder localStorage (~5 Mo) SILENCIEUSEMENT — le preset n'était alors jamais sauvé.
     function bspOutputPresetsPersist() {
-      try { localStorage.setItem(BSP_OUTPUT_PRESETS_STORAGE_KEY, JSON.stringify(bspOutputPresets)); } catch (_) {}
-    }
-    function bspOutputPresetsRestore() {
       try {
-        const raw = localStorage.getItem(BSP_OUTPUT_PRESETS_STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) : null;
-        bspOutputPresets = Array.isArray(parsed) ? parsed.filter(p => p && typeof p === 'object') : [];
-      } catch (_) { bspOutputPresets = []; }
+        idbPut(STORE_STATE, { key: BSP_OUTPUT_PRESETS_IDB_KEY, value: bspOutputPresets, updatedAt: Date.now() })
+          .catch((err) => { console.warn('[BSP] presets persist failed', err); if (typeof showToast === 'function') showToast('Échec de l\'enregistrement des presets'); });
+      } catch (_) {}
+    }
+    async function bspOutputPresetsRestore() {
+      let list = null;
+      try { const rec = await idbGet(STORE_STATE, BSP_OUTPUT_PRESETS_IDB_KEY); if (rec && Array.isArray(rec.value)) list = rec.value; } catch (_) {}
+      if (!list) {
+        // Migration depuis l'ancien stockage localStorage.
+        try {
+          const raw = localStorage.getItem(BSP_OUTPUT_PRESETS_STORAGE_KEY);
+          const parsed = raw ? JSON.parse(raw) : null;
+          if (Array.isArray(parsed)) { list = parsed; }
+        } catch (_) {}
+        if (list) { bspOutputPresets = list.filter(p => p && typeof p === 'object'); bspOutputPresetsPersist(); try { localStorage.removeItem(BSP_OUTPUT_PRESETS_STORAGE_KEY); } catch (_) {} return; }
+      }
+      bspOutputPresets = Array.isArray(list) ? list.filter(p => p && typeof p === 'object') : [];
     }
 
     function bspOutputPresetNewId() {
       return 'fx_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     }
 
+    // Type de preset : un kind (Bible OU Chants) ou TOUTE la sortie (« both » = Bible + Chants).
     function bspOutputPresetNormalizeKind(k) {
-      return (k === 'songs') ? 'songs' : 'bible';
+      return (k === 'songs' || k === 'both') ? k : 'bible';
+    }
+    function bspOutputPresetKindLabel(k) {
+      return k === 'both' ? 'Bible + Chants' : (k === 'songs' ? 'Chants' : 'Bible');
+    }
+    // Designs d'un preset par kind : { bible?: {...}, songs?: {...} } (compatible anciens presets).
+    function bspOutputPresetDesigns(p) {
+      if (!p) return {};
+      if (p.kind === 'both' && p.designs && typeof p.designs === 'object') return p.designs;
+      return { [p.kind === 'songs' ? 'songs' : 'bible']: p.design || {} };
     }
 
     // Design EFFECTIF (base + surcharge) d'une (sortie, kind), en clés « plates » (non suffixées) :
     // c'est la forme portable qu'on fige dans un preset. Pour la sortie Live ('' ou 'obs') il n'y a
     // pas de surcharge → c'est le profil de base du kind.
     function bspOutputPresetDesignFor(outputId, kind) {
-      kind = bspOutputPresetNormalizeKind(kind);
+      kind = (kind === 'songs') ? 'songs' : 'bible';
       const kindBase = (typeof bspScreenDesignBaseForKind === 'function') ? bspScreenDesignBaseForKind(kind) : {};
       const isLive = !outputId || outputId === BSP_DEFAULT_OUTPUT_ID;
       const design = {};
@@ -51,38 +74,42 @@
       return design;
     }
 
-    // Capture la (sortie, kind) courante comme nouveau preset nommé.
+    // Médias de la banque référencés par un design (« bank:<id> » — fond image/vidéo).
+    function bspOutputPresetMediaIds(designs) {
+      const ids = new Set();
+      const prefix = (typeof BSP_MEDIA_REF_PREFIX !== 'undefined') ? BSP_MEDIA_REF_PREFIX : 'bank:';
+      Object.keys(designs || {}).forEach((k) => {
+        const d = designs[k] || {};
+        Object.keys(d).forEach((key) => {
+          const v = d[key];
+          if (typeof v === 'string' && v.startsWith(prefix)) ids.add(v.slice(prefix.length));
+        });
+      });
+      return Array.from(ids);
+    }
+
+    // Capture la sortie comme nouveau preset nommé (un kind, ou « both » = toute la sortie).
     function bspOutputPresetCapture(outputId, kind, name) {
       kind = bspOutputPresetNormalizeKind(kind);
       const label = String(name || '').trim() || ('Preset ' + (bspOutputPresets.length + 1));
-      const preset = {
-        id: bspOutputPresetNewId(),
-        name: label,
-        kind,
-        design: bspOutputPresetDesignFor(outputId, kind),
-        createdAt: Date.now()
-      };
+      const preset = { id: bspOutputPresetNewId(), name: label, kind, createdAt: Date.now() };
+      if (kind === 'both') preset.designs = { bible: bspOutputPresetDesignFor(outputId, 'bible'), songs: bspOutputPresetDesignFor(outputId, 'songs') };
+      else preset.design = bspOutputPresetDesignFor(outputId, kind);
       bspOutputPresets.push(preset);
       bspOutputPresetsPersist();
       return preset;
     }
 
-    // Applique le design d'un preset à une sortie. Live → profil de base du kind (+ rafraîchit la
+    // Applique UN design (d'un kind) à une sortie. Live → profil de base du kind (+ rafraîchit la
     // projection si ce kind est à l'antenne). Écran → écrit sa surcharge (clés ≠ base conservées,
     // clés = base retirées pour rester minimal et re-suivre la base). Le mode/lignes de la sortie
     // Live restent pilotés par la barre du bas : la garde de bspReplaceOutputDesign/base s'en charge.
-    function bspOutputPresetApply(presetId, outputId) {
-      const preset = bspOutputPresets.find(p => p.id === presetId);
-      if (!preset) return false;
-      const kind = bspOutputPresetNormalizeKind(preset.kind);
-      const design = preset.design || {};
+    function bspOutputPresetApplyKind(kind, design, outputId) {
       const kindBase = (typeof bspScreenDesignBaseForKind === 'function') ? bspScreenDesignBaseForKind(kind) : {};
       const toLive = !outputId || outputId === BSP_DEFAULT_OUTPUT_ID;
-
       if (toLive) {
         const profiles = ensureProjectionSettingsProfiles();
         profiles[kind] = normalizeProjectionSettingsSnapshot(design, profiles[kind] || {});
-        // Refléter dans les contrôles si les Réglages montrent CE kind sur Live.
         const curTab = (typeof getEffectiveSettingsTargetTab === 'function') ? getEffectiveSettingsTargetTab()
                      : (typeof sidebarTab !== 'undefined' ? sidebarTab : kind);
         const onLiveTarget = (typeof bspSettingsOutputIsScreen === 'function') ? !bspSettingsOutputIsScreen() : true;
@@ -105,7 +132,13 @@
         });
         if (typeof bspReplaceOutputDesign === 'function') bspReplaceOutputDesign(outputId, next);
       }
+    }
 
+    function bspOutputPresetApply(presetId, outputId) {
+      const preset = bspOutputPresets.find(p => p.id === presetId);
+      if (!preset) return false;
+      const designs = bspOutputPresetDesigns(preset);
+      ['bible', 'songs'].forEach((k) => { if (designs[k]) bspOutputPresetApplyKind(k, designs[k], outputId); });
       // Rafraîchir les sélecteurs/zones qui lisent le design.
       if (typeof bspRenderScreenModeZone === 'function') bspRenderScreenModeZone();
       if (typeof bspRenderSettingsDesignPages === 'function') bspRenderSettingsDesignPages();
@@ -130,16 +163,24 @@
     }
 
     // ── Fichiers .eeamfx ─────────────────────────────────────────────────────────
+    // Le fichier EMBARQUE les médias de la banque utilisés en fond (image/vidéo « bank:<id> ») :
+    // sur un autre PC la référence seule ne mène à rien → le fond disparaissait.
     function bspOutputPresetBuildFilePayload(presets) {
+      const bank = (typeof bspMediaBank !== 'undefined' && bspMediaBank) ? bspMediaBank : {};
       return {
         app: 'Bible Song Pro',
         kind: BSP_OUTPUT_PRESET_FILE_KIND,
-        bspOutputPreset: 1,
+        bspOutputPreset: 2,
         exportedAt: new Date().toISOString(),
-        presets: (presets || []).map(p => ({
-          id: p.id, name: p.name, kind: bspOutputPresetNormalizeKind(p.kind),
-          design: p.design || {}, createdAt: p.createdAt || Date.now()
-        }))
+        presets: (presets || []).map((p) => {
+          const kind = bspOutputPresetNormalizeKind(p.kind);
+          const designs = bspOutputPresetDesigns(p);
+          const media = {};
+          bspOutputPresetMediaIds(designs).forEach((id) => { if (bank[id] && bank[id].dataUrl) media[id] = bank[id]; });
+          const out = { id: p.id, name: p.name, kind, createdAt: p.createdAt || Date.now(), media };
+          if (kind === 'both') out.designs = designs; else out.design = p.design || {};
+          return out;
+        })
       };
     }
     async function bspOutputPresetExport(ids) {
@@ -152,26 +193,37 @@
       const name = (list.length === 1 ? ('EEAM-preset_' + String(list[0].name || '').replace(/[^\w\-]+/g, '-').slice(0, 40)) : 'EEAM-presets') + '_' + stamp + '.eeamfx';
       return bspSaveJsonFile(JSON.stringify(payload, null, 2), name, { description: 'EEAM Output Preset', ext: '.eeamfx' });
     }
-    // Fusionne les presets d'un objet .eeamfx importé. Rejette tout autre type de fichier.
-    function bspOutputPresetImportData(obj) {
+    // Fusionne les presets d'un objet .eeamfx importé (+ restaure ses médias dans la banque).
+    // Rejette tout autre type de fichier.
+    async function bspOutputPresetImportData(obj) {
       if (!obj || typeof obj !== 'object') { if (typeof showToast === 'function') showToast('Fichier illisible'); return 0; }
       if (obj.kind && obj.kind !== BSP_OUTPUT_PRESET_FILE_KIND) {
         if (typeof showToast === 'function') showToast('Ce fichier n\'est pas un preset de sortie (.eeamfx)');
         return 0;
       }
       const incoming = Array.isArray(obj.presets) ? obj.presets : [];
+      const mediaRecs = [];
       let added = 0;
       incoming.forEach((p) => {
-        if (!p || typeof p !== 'object' || !p.design) return;
-        bspOutputPresets.push({
-          id: bspOutputPresetNewId(),
-          name: String(p.name || 'Preset importé').trim(),
-          kind: bspOutputPresetNormalizeKind(p.kind),
-          design: p.design,
-          createdAt: Date.now()
+        if (!p || typeof p !== 'object') return;
+        const kind = bspOutputPresetNormalizeKind(p.kind);
+        if (kind === 'both' ? !(p.designs && typeof p.designs === 'object') : !p.design) return;
+        const rec = { id: bspOutputPresetNewId(), name: String(p.name || 'Preset importé').trim(), kind, createdAt: Date.now() };
+        if (kind === 'both') rec.designs = p.designs; else rec.design = p.design;
+        bspOutputPresets.push(rec);
+        Object.keys(p.media || {}).forEach((id) => {
+          const m = p.media[id];
+          if (m && m.id && m.dataUrl && (typeof bspMediaBank === 'undefined' || !bspMediaBank[m.id])) mediaRecs.push(m);
         });
         added += 1;
       });
+      if (mediaRecs.length) {
+        try {
+          await dbPutMany(STORE_MEDIA, mediaRecs);
+          mediaRecs.forEach((m) => { if (typeof bspMediaBank !== 'undefined') bspMediaBank[m.id] = m; });
+          if (typeof bspRenderMediaGallery === 'function') bspRenderMediaGallery();
+        } catch (err) { console.warn('[BSP] preset media restore failed', err); }
+      }
       if (added) bspOutputPresetsPersist();
       return added;
     }
@@ -208,6 +260,7 @@
         .bsp-fx-badge{font-size:10px;font-weight:800;letter-spacing:.04em;padding:3px 7px;border-radius:999px;text-transform:uppercase}
         .bsp-fx-badge.bible{background:rgba(59,130,246,.2);color:#9ac3ff}
         .bsp-fx-badge.songs{background:rgba(168,85,247,.22);color:#d6b2ff}
+        .bsp-fx-badge.both{background:rgba(46,160,67,.2);color:#9be9a8}
         .bsp-fx-iconbtn{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--text,#e8edf6);border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer}
         .bsp-fx-iconbtn:hover{background:rgba(255,255,255,.12)}
         .bsp-fx-empty{color:#8a9bb8;font-size:13px;text-align:center;padding:14px}
@@ -276,7 +329,7 @@
       bspOutputPresetsInjectStyles();
       // Défauts = sortie + kind courants des Réglages.
       bspFxWorkingOutput = (typeof settingsTargetOutput !== 'undefined' && settingsTargetOutput) ? settingsTargetOutput : '';
-      bspFxWorkingKind = (typeof bspSettingsDesignKind === 'function') ? bspSettingsDesignKind() : 'bible';
+      bspFxWorkingKind = 'both'; // par défaut : TOUTE la sortie (Bible + Chants)
       let overlay = document.getElementById('bsp-fx-overlay');
       if (!overlay) {
         overlay = document.createElement('div');
@@ -301,12 +354,12 @@
       const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
       const outSelHtml = outOpts.map(o => `<option value="${esc(o.id)}"${o.id === bspFxWorkingOutput ? ' selected' : ''}>${esc(o.label)}</option>`).join('');
-      const kindSelHtml = ['bible', 'songs'].map(k => `<option value="${k}"${k === bspFxWorkingKind ? ' selected' : ''}>${k === 'bible' ? 'Bible' : 'Chants'}</option>`).join('');
+      const kindSelHtml = ['both', 'bible', 'songs'].map(k => `<option value="${k}"${k === bspFxWorkingKind ? ' selected' : ''}>${bspOutputPresetKindLabel(k)}</option>`).join('');
 
       const listHtml = bspOutputPresets.length
         ? `<div class="bsp-fx-list">` + bspOutputPresets.map(p => `
             <div class="bsp-fx-item" data-id="${esc(p.id)}">
-              <span class="bsp-fx-badge ${p.kind === 'songs' ? 'songs' : 'bible'}">${p.kind === 'songs' ? 'Chants' : 'Bible'}</span>
+              <span class="bsp-fx-badge ${bspOutputPresetNormalizeKind(p.kind)}">${bspOutputPresetKindLabel(bspOutputPresetNormalizeKind(p.kind))}</span>
               <input class="bsp-fx-item__name" value="${esc(p.name)}" data-act="rename" title="Cliquez pour renommer" />
               <button class="bsp-fx-iconbtn" data-act="renamebtn" title="Renommer">${bspFxIcon('rename')}</button>
               <button class="bsp-fx-btn" data-act="apply" title="Appliquer à la sortie choisie ci-dessus">Appliquer</button>
@@ -333,7 +386,7 @@
                 <input class="bsp-fx-input" data-act="newname" placeholder="Nom du preset (ex. Écran salle — Bible)" />
                 <button class="bsp-fx-btn" data-act="capture">+ Capturer le design de cette sortie</button>
               </div>
-              <div class="bsp-fx-note" style="margin-top:8px">« Appliquer » applique le preset sélectionné à la sortie choisie ci-dessus (${esc(outLabel)}), pour le type ${bspFxWorkingKind === 'songs' ? 'Chants' : 'Bible'}.</div>
+              <div class="bsp-fx-note" style="margin-top:8px">« Capturer » fige TOUT le design de la sortie (typographie, couleurs, arrière-plan, SD, contour, référence…) pour le type choisi. « Appliquer » l'applique à la sortie choisie ci-dessus (${esc(outLabel)}).</div>
             </div>
             ${listHtml}
           </div>
@@ -414,10 +467,10 @@
         input.value = '';
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = () => {
+        reader.onload = async () => {
           let obj = null;
           try { obj = JSON.parse(String(reader.result || '')); } catch (_) { obj = null; }
-          const added = bspOutputPresetImportData(obj);
+          const added = await bspOutputPresetImportData(obj);
           if (added && typeof showToast === 'function') showToast(added + ' preset(s) importé(s)');
           bspRenderOutputPresetsModal();
         };
