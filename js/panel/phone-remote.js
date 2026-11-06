@@ -129,6 +129,47 @@
           return;
         }
 
+        // Recherche de versets depuis le téléphone — EXACTEMENT la recherche du PC : une
+        // référence (« Gen 1:1 », « Jean 3 », « 1 Co 13:4 ») via findBibleReferenceMatches,
+        // sinon un mot-clé via findBibleKeywordMatches. Chaque résultat porte l'index de PAGE
+        // (même découpage getPagesFromItem que les slides envoyées au téléphone), pour ouvrir
+        // le chapitre sur le bon verset, le projeter ou l'ajouter à la setlist.
+        if (type === 'PHONE_BIBLE_SEARCH') {
+          const version = String(payload.version || '');
+          const query = String(payload.query || '').trim().slice(0, 120);
+          const reply = (results, mode) => bspPhoneReply({ type: 'PHONE_BIBLE_SEARCH_RESULT', version, query, mode, results });
+          if (!query || !(version in bibles)) { reply([], 'none'); return; }
+          if (typeof ensureBibleLoaded === 'function') await ensureBibleLoaded(version);
+          const list = bibles[version] || [];
+          let mode = 'ref';
+          let raw = (typeof isBibleReferenceQuery === 'function' && isBibleReferenceQuery(query))
+            ? findBibleReferenceMatches(query, { versionId: version }) : [];
+          if (!raw.length) {
+            mode = 'keyword';
+            raw = (typeof findBibleKeywordMatches === 'function') ? findBibleKeywordMatches(query, { versionId: version, maxResults: 80 }) : [];
+          }
+          const pagesByChapter = {};
+          const results = raw.slice(0, 80).map((r) => {
+            const ch = list[r.chapterIndex];
+            if (!ch) return null;
+            if (!pagesByChapter[r.chapterIndex]) {
+              try { pagesByChapter[r.chapterIndex] = getPagesFromItem(ch, true); } catch (_) { pagesByChapter[r.chapterIndex] = []; }
+            }
+            const pages = pagesByChapter[r.chapterIndex];
+            const page = (typeof findBiblePageByVerse === 'function') ? findBiblePageByVerse(pages, r.verse) : null;
+            return {
+              chapterIndex: r.chapterIndex,
+              book: String(r.book || ch.book || ''),
+              chapter: String(r.chapter || ch.chapter || ''),
+              verse: String(r.verse || ''),
+              text: String(r.text || '').slice(0, 240),
+              pageIndex: page ? Math.max(0, pages.indexOf(page)) : 0
+            };
+          }).filter(Boolean);
+          reply(results, mode);
+          return;
+        }
+
         if (type === 'PHONE_SONG_GET') {
           const i = Number(payload.i);
           const song = songs[i];
@@ -210,6 +251,15 @@
             selectItem(idx, { skipButtonView: true });
             quickAddVerseToSetlist(Math.max(0, Number(payload.pageIndex) || 0));
             bspPhoneReply({ type: 'PHONE_ADDED', ok: true, what: (bibles[version][idx] || {}).title || '' });
+          } else if (payload.kind === 'bible_chapter') {
+            // Chapitre ENTIER, comme « Ajouter à la setlist » sur un chapitre au PC.
+            const version = String(payload.version || '');
+            if (typeof ensureBibleLoaded === 'function' && (version in bibles)) await ensureBibleLoaded(version);
+            const idx = Number(payload.chapterIndex);
+            const chapter = (bibles[version] || [])[idx];
+            if (!chapter || !Number.isInteger(idx)) { bspPhoneReply({ type: 'PHONE_ADDED', ok: false }); return; }
+            insertIntoSchedule({ ...chapter }, { successMessage: t('setlist_added') });
+            bspPhoneReply({ type: 'PHONE_ADDED', ok: true, what: chapter.title || '' });
           } else {
             bspPhoneReply({ type: 'PHONE_ADDED', ok: false });
           }

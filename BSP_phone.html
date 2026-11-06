@@ -138,6 +138,53 @@
   .subcard textarea { min-height: 64px; }
   .subshow { flex-shrink: 0; border: 0; border-radius: 9px; padding: 9px 14px; font: 700 13px/1 inherit; color: #fff; background: var(--ok); }
   .subshow.on { background: var(--live); }
+  /* ── Bible : version → recherche → livre → chapitre (même organisation que le PC) ── */
+  .bfield { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .bfield > label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; padding-left: 2px; }
+  .selwrap { position: relative; }
+  .selwrap select { appearance: none; -webkit-appearance: none; padding-right: 38px; font-weight: 600; }
+  .selwrap::after, .picker::after {
+    content: ''; position: absolute; right: 15px; top: 50%; width: 8px; height: 8px; margin-top: -6px;
+    border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); pointer-events: none;
+  }
+  .picker {
+    position: relative; width: 100%; text-align: left; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); padding: 12px 38px 12px 12px; font: 600 15px/1.3 inherit;
+  }
+  .picker.empty { color: var(--muted); font-weight: 500; }
+  .picker .sub { color: var(--muted); font-weight: 500; font-size: 12px; margin-left: 8px; }
+  .searchbox { position: relative; margin-bottom: 12px; }
+  .searchbox input { padding-left: 40px; padding-right: 40px; }
+  .searchbox svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+  .searchbox .x { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--muted); font-size: 22px; line-height: 1; padding: 6px 12px; }
+  .grid button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .vhead { display: flex; align-items: center; gap: 8px; margin: 6px 2px 10px; }
+  .vhead span { flex: 1; min-width: 0; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chipbtn { flex-shrink: 0; background: rgba(10,132,255,0.12); border: 1px solid rgba(10,132,255,0.45); color: var(--accent); border-radius: 9px; padding: 9px 12px; font: 600 13px/1 inherit; }
+  .chipbtn.ghost { background: var(--card); border-color: var(--border); color: var(--muted); }
+  .res .ref { display: block; font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 3px; }
+  .res .txt { display: block; font-size: 13.5px; white-space: normal; }
+  .res mark { background: rgba(255,210,74,0.28); color: inherit; border-radius: 3px; padding: 0 1px; }
+  .slide.focus { animation: bspFocus 1.8s ease; }
+  @keyframes bspFocus { 0%, 45% { box-shadow: 0 0 0 2px var(--accent) inset; background: rgba(10,132,255,0.16); } 100% { box-shadow: none; } }
+  /* Feuille de choix du livre (glisse depuis le bas) */
+  .sheet { position: fixed; inset: 0; z-index: 45; background: rgba(0,0,0,0.55); display: flex; align-items: flex-end; justify-content: center; }
+  .sheet-card {
+    width: 100%; max-width: 640px; max-height: 82vh; background: var(--panel); border: 1px solid var(--border); border-bottom: 0;
+    border-radius: 16px 16px 0 0; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); animation: sheetUp .22s ease;
+  }
+  @keyframes sheetUp { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .sheet-grab { width: 38px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.2); margin: 8px auto 2px; }
+  .sheet-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; margin: 6px 0 2px; }
+  .sheet-head { display: flex; gap: 8px; align-items: center; padding: 8px 12px 10px; border-bottom: 1px solid var(--border); }
+  .sheet-head .x { flex-shrink: 0; background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 11px 14px; font: 600 14px/1 inherit; }
+  .sheet-list { overflow: auto; padding: 8px 10px 14px; display: flex; flex-direction: column; gap: 3px; -webkit-overflow-scrolling: touch; }
+  .bookrow { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: transparent; border: 1px solid transparent; border-radius: 10px; color: var(--text); padding: 13px 12px; font: 500 15px/1.2 inherit; }
+  .bookrow:active { background: var(--card); }
+  .bookrow.on { background: rgba(10,132,255,0.10); border-color: rgba(10,132,255,0.5); color: var(--accent); font-weight: 700; }
+  .bookrow .grow { flex: 1; min-width: 0; }
+  .bookrow .cnt { flex-shrink: 0; font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 20px; padding: 2px 9px; font-weight: 600; }
+  .sheet-empty { color: var(--muted); text-align: center; padding: 22px; font-size: 13px; }
   @media (min-width: 700px) { main { max-width: 640px; margin: 0 auto; width: 100%; } }
 </style>
 </head>
@@ -157,13 +204,36 @@
 </nav>
 
 <main>
-  <!-- BIBLE : versions → livres → chapitres → versets -->
+  <!-- BIBLE : même organisation que le PC — version → recherche → livre → chapitre → versets -->
   <section id="view-bible">
-    <div id="bible-crumb" class="crumb hidden"><button id="bible-back">‹ Retour</button><span id="bible-where"></span></div>
-    <div id="bible-versions" class="list"><p class="waiting">Connexion au panneau du PC…</p></div>
-    <div id="bible-books" class="list hidden"></div>
-    <div id="bible-chapters" class="grid hidden"></div>
-    <div id="bible-verses" class="list hidden"></div>
+    <div class="bfield">
+      <label for="bible-version">Version</label>
+      <div class="selwrap"><select id="bible-version"><option value="">Connexion au panneau du PC…</option></select></div>
+    </div>
+    <div class="searchbox">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+      <input type="text" id="bible-search" placeholder="Rechercher : Gen 1:1, Jean 3, ou un mot…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+      <button class="x hidden" id="bible-search-clear" type="button" aria-label="Effacer la recherche">×</button>
+    </div>
+    <div id="bible-search-results" class="list hidden"></div>
+    <div id="bible-browse">
+      <div class="bfield">
+        <label>Livre</label>
+        <button class="picker empty" id="book-picker" type="button">Choisir un livre</button>
+      </div>
+      <div class="bfield hidden" id="bible-chapters-wrap">
+        <label>Chapitre</label>
+        <div id="bible-chapters" class="grid"></div>
+      </div>
+      <div id="bible-verses-wrap" class="hidden">
+        <div class="vhead">
+          <button class="chipbtn ghost hidden" id="back-results" type="button">‹ Résultats</button>
+          <span id="bible-where"></span>
+          <button class="chipbtn" id="add-chapter" type="button" title="Ajouter tout le chapitre à la setlist">＋ Chapitre</button>
+        </div>
+        <div id="bible-verses" class="list"></div>
+      </div>
+    </div>
   </section>
 
   <!-- CHANTS : recherche + liste → slides ; ajout -->
@@ -209,6 +279,19 @@
 
 <footer><button id="btn-clear">EFFACER L'ÉCRAN</button></footer>
 <div id="toast"></div>
+
+<!-- Choix du livre : liste propre + recherche (insensible aux accents) -->
+<div class="sheet hidden" id="book-sheet" role="dialog" aria-modal="true" aria-label="Choisir un livre">
+  <div class="sheet-card">
+    <div class="sheet-grab"></div>
+    <div class="sheet-title">Choisir un livre</div>
+    <div class="sheet-head">
+      <input type="text" id="book-filter" placeholder="Rechercher un livre…" autocomplete="off" spellcheck="false">
+      <button class="x" id="book-sheet-close" type="button">Fermer</button>
+    </div>
+    <div class="sheet-list" id="book-list"></div>
+  </div>
+</div>
 
 <!-- Slot occupé / erreurs bloquantes -->
 <div class="gate hidden" id="gate">
@@ -325,7 +408,7 @@
       send({ type: 'PHONE_SYNC_REQUEST' });
     }, 1000);
   }
-  var bible = { version: '', books: [], book: null, chapter: 0, chapterIndex: -1, slides: [] };
+  var bible = { version: '', books: [], book: null, chapter: 0, chapterIndex: -1, slides: [], focusPage: -1, fromSearch: '' };
   var songSel = { i: -1, slides: [] };
   var setlistSel = { i: -1, slides: [], isOpen: false };
   var liveKey = ''; // "kind:i:page" de la slide actuellement en direct (vue de ce téléphone)
@@ -343,10 +426,20 @@
         sync = p; renderBibleVersions(); renderSongs(); renderSetlist(); renderSubtitles();
         break;
       case 'PHONE_BOOKS':
-        if (p.version === bible.version) { bible.books = p.books || []; renderBooks(); }
+        if (p.version === bible.version) {
+          bible.books = p.books || [];
+          renderBookPicker();
+          if (!$('book-sheet').classList.contains('hidden')) renderBookList();
+        }
         break;
       case 'PHONE_BIBLE':
-        if (p.version === bible.version) { bible.chapterIndex = p.chapterIndex; bible.slides = p.slides || []; renderVerses(); }
+        // Ignore une réponse périmée (autre chapitre demandé entre-temps).
+        if (p.version === bible.version && bible.book && p.book === bible.book.name && String(p.chapter) === String(bible.chapter)) {
+          bible.chapterIndex = p.chapterIndex; bible.slides = p.slides || []; renderVerses();
+        }
+        break;
+      case 'PHONE_BIBLE_SEARCH_RESULT':
+        if (p.version === bible.version && p.query === searchQuery && ($('bible-search').value || '').trim() === p.query) renderSearchResults(p);
         break;
       case 'PHONE_SONG':
         if (p.i === songSel.i) { songSel.slides = p.slides || []; renderSongSlides(p.title); }
@@ -421,66 +514,193 @@
   }
 
   // ── BIBLE ─────────────────────────────────────────────────────────
-  function show(ids) {
-    ['bible-versions', 'bible-books', 'bible-chapters', 'bible-verses'].forEach(function (id) {
-      $(id).classList.toggle('hidden', ids.indexOf(id) === -1);
-    });
-    $('bible-crumb').classList.toggle('hidden', ids[0] === 'bible-versions');
-  }
+  // Même organisation que le PC : Version → Recherche (« Gen 1:1 », « Jean 3 » ou un mot) →
+  // Livre (liste avec recherche) → Chapitre → Versets. La recherche est résolue PAR LE PC avec
+  // ses propres fonctions : mêmes résultats qu'au PC. Ajouts setlist → setlist du PC en direct.
+  var BIBLE_VERSION_KEY = 'bsp-phone-bible-version';
+  var searchTimer = null, searchQuery = '';
+  function fold(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // Appelé à chaque PHONE_SYNC : remplit la liste des versions sans réinitialiser la navigation
+  // si la version choisie existe toujours (dernier choix mémorisé sur ce téléphone).
   function renderBibleVersions() {
-    var box = $('bible-versions'); box.innerHTML = '';
-    if (!sync.bibleVersions.length) { box.innerHTML = '<p style="color:var(--muted)">Aucune version de Bible chargée sur le PC principal.</p>'; }
-    sync.bibleVersions.forEach(function (v) {
-      box.appendChild(rowButton(v, 'BIBLE', function () {
-        bible.version = v; bible.books = [];
-        send({ type: 'PHONE_BOOKS_GET', version: v });
-        $('bible-where').textContent = v; show(['bible-books']);
-      }));
-    });
-    show(['bible-versions']);
+    var sel = $('bible-version');
+    var list = sync.bibleVersions || [];
+    var want = bible.version;
+    if (!want) { try { want = localStorage.getItem(BIBLE_VERSION_KEY) || ''; } catch (e) { want = ''; } }
+    if (list.indexOf(want) === -1) want = list[0] || '';
+    sel.innerHTML = '';
+    if (!list.length) {
+      var o = document.createElement('option'); o.value = ''; o.textContent = 'Aucune version de Bible chargée sur le PC';
+      sel.appendChild(o); sel.disabled = true;
+    } else {
+      sel.disabled = false;
+      list.forEach(function (v) { var op = document.createElement('option'); op.value = v; op.textContent = v; if (v === want) op.selected = true; sel.appendChild(op); });
+    }
+    if (want !== bible.version) selectVersion(want);
   }
-  function renderBooks() {
-    var box = $('bible-books'); box.innerHTML = '';
-    bible.books.forEach(function (bk) {
-      box.appendChild(rowButton(bk.name, bk.chapters + ' ch.', function () {
-        bible.book = bk; renderChapters();
-      }));
+  function selectVersion(v) {
+    bible.version = v; bible.books = []; bible.book = null; bible.chapter = 0; bible.chapterIndex = -1; bible.slides = []; bible.fromSearch = '';
+    try { if (v) localStorage.setItem(BIBLE_VERSION_KEY, v); } catch (e) {}
+    renderBookPicker();
+    $('bible-chapters-wrap').classList.add('hidden');
+    $('bible-verses-wrap').classList.add('hidden');
+    if (v) send({ type: 'PHONE_BOOKS_GET', version: v });
+    if (($('bible-search').value || '').trim()) runBibleSearch();
+  }
+  $('bible-version').addEventListener('change', function () { selectVersion(this.value); });
+
+  // ── Livre : bouton + feuille de choix avec recherche ──
+  function renderBookPicker() {
+    var b = $('book-picker');
+    if (bible.book) { b.classList.remove('empty'); b.innerHTML = esc(bible.book.name) + '<span class="sub">' + bible.book.chapters + ' ch.</span>'; }
+    else { b.classList.add('empty'); b.textContent = bible.version ? 'Choisir un livre' : "Choisissez d'abord une version"; }
+  }
+  function openBookSheet() {
+    if (!bible.version) return;
+    $('book-filter').value = '';
+    renderBookList();
+    $('book-sheet').classList.remove('hidden');
+    var on = $('book-list').querySelector('.bookrow.on');
+    if (on) on.scrollIntoView({ block: 'center' });
+  }
+  function closeBookSheet() { $('book-sheet').classList.add('hidden'); }
+  function renderBookList() {
+    var box = $('book-list'); box.innerHTML = '';
+    if (!bible.books.length) { box.innerHTML = '<p class="sheet-empty">Chargement des livres…</p>'; return; }
+    var q = fold($('book-filter').value), qc = q.replace(/\s+/g, '');
+    var shown = bible.books.filter(function (bk) {
+      if (!q) return true;
+      var n = fold(bk.name);
+      return n.indexOf(q) !== -1 || n.replace(/\s+/g, '').indexOf(qc) !== -1;
     });
+    if (!shown.length) { box.innerHTML = '<p class="sheet-empty">Aucun livre ne correspond.</p>'; return; }
+    shown.forEach(function (bk) {
+      var r = document.createElement('button'); r.type = 'button';
+      r.className = 'bookrow' + (bible.book && bible.book.name === bk.name ? ' on' : '');
+      r.innerHTML = '<span class="grow">' + esc(bk.name) + '</span><span class="cnt">' + bk.chapters + ' ch.</span>';
+      r.addEventListener('click', function () { chooseBook(bk); closeBookSheet(); });
+      box.appendChild(r);
+    });
+  }
+  $('book-picker').addEventListener('click', openBookSheet);
+  $('book-filter').addEventListener('input', renderBookList);
+  $('book-filter').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    var first = $('book-list').querySelector('.bookrow'); if (first) first.click();
+  });
+  $('book-sheet-close').addEventListener('click', closeBookSheet);
+  $('book-sheet').addEventListener('click', function (e) { if (e.target === this) closeBookSheet(); });
+
+  // ── Chapitre → versets ──
+  function chooseBook(bk) {
+    bible.book = bk; bible.chapter = 0; bible.chapterIndex = -1; bible.slides = []; bible.fromSearch = '';
+    renderBookPicker(); renderChapters();
+    $('bible-verses-wrap').classList.add('hidden');
   }
   function renderChapters() {
     var box = $('bible-chapters'); box.innerHTML = '';
+    if (!bible.book) { $('bible-chapters-wrap').classList.add('hidden'); return; }
     for (var c = 1; c <= bible.book.chapters; c++) {
       (function (ch) {
-        var b = document.createElement('button');
-        b.textContent = ch;
-        b.addEventListener('click', function () {
-          bible.chapter = ch; bible.slides = [];
-          send({ type: 'PHONE_BIBLE_GET', version: bible.version, book: bible.book.name, chapter: ch });
-          $('bible-where').textContent = bible.version + ' · ' + bible.book.name + ' ' + ch;
-          show(['bible-verses']);
-        });
+        var b = document.createElement('button'); b.type = 'button'; b.textContent = ch;
+        if (ch === bible.chapter) b.className = 'on';
+        b.addEventListener('click', function () { bible.fromSearch = ''; openChapter(ch, -1); });
         box.appendChild(b);
       })(c);
     }
-    $('bible-where').textContent = bible.version + ' · ' + bible.book.name;
-    show(['bible-chapters']);
+    $('bible-chapters-wrap').classList.remove('hidden');
+  }
+  function openChapter(ch, focusPage) {
+    bible.chapter = Number(ch) || 1; bible.slides = []; bible.chapterIndex = -1;
+    bible.focusPage = (focusPage == null) ? -1 : focusPage;
+    renderChapters();
+    $('bible-where').textContent = bible.book.name + ' ' + bible.chapter;
+    $('back-results').classList.toggle('hidden', !bible.fromSearch);
+    $('bible-verses').innerHTML = '<p class="waiting">Chargement…</p>';
+    $('bible-verses-wrap').classList.remove('hidden');
+    send({ type: 'PHONE_BIBLE_GET', version: bible.version, book: bible.book.name, chapter: bible.chapter });
   }
   function renderVerses() {
     var box = $('bible-verses'); box.innerHTML = '';
+    if (!bible.slides.length) { box.innerHTML = '<p class="waiting">Chapitre introuvable dans cette version.</p>'; return; }
+    var focusEl = null;
     bible.slides.forEach(function (s, i) {
       var slide = slideButton(s, bible.book.name + ' ' + bible.chapter + ' — page ' + (i + 1), 'bible:' + bible.chapterIndex + ':' + i, function () {
         project('bible', null, i);
       });
+      if (i === bible.focusPage) { slide.classList.add('focus'); focusEl = slide; }
       box.appendChild(withAdd(slide, function () {
         send({ type: 'PHONE_ADD_TO_SETLIST', kind: 'bible', version: bible.version, chapterIndex: bible.chapterIndex, pageIndex: i });
       }));
     });
+    bible.focusPage = -1;
+    if (focusEl) setTimeout(function () { focusEl.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 40);
   }
-  $('bible-back').addEventListener('click', function () {
-    if (!$('bible-verses').classList.contains('hidden')) { renderChapters(); }
-    else if (!$('bible-chapters').classList.contains('hidden')) { show(['bible-books']); $('bible-where').textContent = bible.version; }
-    else renderBibleVersions();
+  $('add-chapter').addEventListener('click', function () {
+    if (bible.chapterIndex < 0) return;
+    send({ type: 'PHONE_ADD_TO_SETLIST', kind: 'bible_chapter', version: bible.version, chapterIndex: bible.chapterIndex });
   });
+  $('back-results').addEventListener('click', function () {
+    if (!bible.fromSearch) return;
+    $('bible-search').value = bible.fromSearch; bible.fromSearch = '';
+    runBibleSearch();
+  });
+
+  // ── Recherche (résolue par le PC) ──
+  function runBibleSearch() {
+    var q = ($('bible-search').value || '').trim();
+    $('bible-search-clear').classList.toggle('hidden', !q);
+    var active = q.length >= 2;
+    $('bible-search-results').classList.toggle('hidden', !active);
+    $('bible-browse').classList.toggle('hidden', active);
+    if (!active) { searchQuery = ''; return; }
+    var box = $('bible-search-results');
+    if (!bible.version) { box.innerHTML = '<p class="waiting">Choisissez une version.</p>'; return; }
+    searchQuery = q;
+    box.innerHTML = '<p class="waiting">Recherche…</p>';
+    send({ type: 'PHONE_BIBLE_SEARCH', version: bible.version, query: q });
+  }
+  $('bible-search').addEventListener('input', function () { clearTimeout(searchTimer); searchTimer = setTimeout(runBibleSearch, 280); });
+  $('bible-search').addEventListener('keydown', function (e) { if (e.key === 'Enter') { clearTimeout(searchTimer); runBibleSearch(); this.blur(); } });
+  $('bible-search-clear').addEventListener('click', function () { $('bible-search').value = ''; runBibleSearch(); });
+
+  function highlight(text, words) {
+    var h = esc(text);
+    words.forEach(function (w) {
+      var re = new RegExp('(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+      h = h.replace(re, '<mark>$1</mark>');
+    });
+    return h;
+  }
+  function renderSearchResults(p) {
+    var box = $('bible-search-results'); box.innerHTML = '';
+    var res = p.results || [];
+    if (!res.length) { box.innerHTML = '<p class="waiting">Aucun résultat pour « ' + esc(p.query) + ' ».</p>'; return; }
+    var head = document.createElement('h2');
+    head.textContent = res.length + (res.length >= 80 ? '+' : '') + ' résultat' + (res.length > 1 ? 's' : '') + (p.mode === 'keyword' ? ' · mot-clé' : '');
+    box.appendChild(head);
+    var words = (p.mode === 'keyword') ? String(p.query).toLowerCase().split(/\s+/).filter(function (w) { return w.length > 1; }) : [];
+    res.forEach(function (r) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'slide res';
+      b.innerHTML = '<span class="ref">' + esc(r.book + ' ' + r.chapter + ':' + r.verse) + '</span><span class="txt">' + highlight(r.text, words) + '</span>';
+      b.addEventListener('click', function () { openFromSearch(r, p.query); });
+      box.appendChild(withAdd(b, function () {
+        send({ type: 'PHONE_ADD_TO_SETLIST', kind: 'bible', version: bible.version, chapterIndex: r.chapterIndex, pageIndex: r.pageIndex });
+      }));
+    });
+  }
+  // Ouvre le chapitre du résultat, positionné et surligné sur le verset (comme au PC).
+  function openFromSearch(r, query) {
+    var bk = null;
+    for (var k = 0; k < bible.books.length; k++) { if (bible.books[k].name === r.book) { bk = bible.books[k]; break; } }
+    if (!bk) bk = { name: r.book, chapters: Math.max(1, Number(r.chapter) || 1) };
+    bible.book = bk; renderBookPicker();
+    $('bible-search').value = ''; runBibleSearch();
+    bible.fromSearch = query || '';
+    openChapter(Number(r.chapter) || 1, r.pageIndex);
+  }
 
   // ── CHANTS ────────────────────────────────────────────────────────
   function renderSongs() {
