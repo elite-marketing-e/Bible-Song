@@ -1015,6 +1015,13 @@
                            xmlBibleRoot?.getAttribute('name') ||
                            file.name.split('.')[0].toUpperCase();
             const parsed = parseBible(xml, verName);
+            // Langue de la Bible : pré-remplie avec celle détectée dans le fichier (ou la langue déjà
+            // attribuée à cette version), confirmée/choisie par l'utilisateur. Annuler = sans changement.
+            if (typeof bspAskBibleLanguage === 'function') {
+              const detected = (typeof bspBibleLangLabelFromDetected === 'function') ? bspBibleLangLabelFromDetected(detectBibleLanguage(xml, verName)) : '';
+              const chosen = await bspAskBibleLanguage(verName, bspBibleLangOf(verName) || detected);
+              if (chosen !== null) bspSetBibleLang(verName, chosen);
+            }
             if (bibles[verName]) {
               showConfirm('Version Exists', `Version "${verName}" already exists. Replace?`, async () => {
                 bibles[verName] = parsed;

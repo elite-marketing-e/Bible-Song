@@ -536,7 +536,16 @@
       sel.appendChild(o); sel.disabled = true;
     } else {
       sel.disabled = false;
-      list.forEach(function (v) { var op = document.createElement('option'); op.value = v; op.textContent = v; if (v === want) op.selected = true; sel.appendChild(op); });
+      // Regroupées par LANGUE (comme au PC) ; « Sans langue » en dernier.
+      var langs = sync.bibleLanguages || {}, groups = {}, order = [];
+      list.forEach(function (v) { var l = langs[v] || ''; if (!groups[l]) { groups[l] = []; order.push(l); } groups[l].push(v); });
+      order.sort(function (a, b) { if (!a) return 1; if (!b) return -1; return a.localeCompare(b); });
+      var useGroups = order.length > 1 || (order.length === 1 && order[0]);
+      order.forEach(function (l) {
+        var parent = sel;
+        if (useGroups) { parent = document.createElement('optgroup'); parent.label = l || 'Sans langue'; sel.appendChild(parent); }
+        groups[l].forEach(function (v) { var op = document.createElement('option'); op.value = v; op.textContent = v; if (v === want) op.selected = true; parent.appendChild(op); });
+      });
     }
     if (want !== bible.version) selectVersion(want);
   }

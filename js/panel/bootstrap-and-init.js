@@ -4907,6 +4907,7 @@
       bspInitBibleVersionDropdown();
       bspOutputDesignsRestore();
       if (typeof bspOutputPresetsRestore === 'function') bspOutputPresetsRestore();
+      if (typeof bspBibleLangsRestore === 'function') bspBibleLangsRestore();
       if (typeof bspRestoreSystemFonts === 'function') bspRestoreSystemFonts();
       if (typeof bspLoadMediaBank === 'function') bspLoadMediaBank().catch(() => {});
       if (typeof bspInitMediaGallery === 'function') bspInitMediaGallery();

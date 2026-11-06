@@ -14,6 +14,12 @@
     let bspVerRows = [];
     let bspVerPendingDelete = '';
     let bspVerBound = false;
+    // Langue choisie dans la barre de langues ('' = toutes ; BSP_VER_NOLANG = « Sans langue »).
+    const BSP_VER_NOLANG = '\u0000none';
+    const BSP_VER_LANG_KEY = 'bsp-ver-lang-v1';
+    let bspVerLang = (() => { try { return localStorage.getItem(BSP_VER_LANG_KEY) || ''; } catch (_) { return ''; } })();
+    function bspVerLangOf(ver) { return (typeof bspBibleLangOf === 'function') ? bspBibleLangOf(ver) : ''; }
+    function bspVerSetLang(l) { bspVerLang = l || ''; try { localStorage.setItem(BSP_VER_LANG_KEY, bspVerLang); } catch (_) {} }
 
     function bspVerEls() {
       return {
@@ -42,7 +48,7 @@
 
     function bspVerMatches(ver) {
       if (!bspVerFilter) return true;
-      return normalizeSearchText(ver).includes(bspVerFilter);
+      return normalizeSearchText(ver).includes(bspVerFilter) || normalizeSearchText(bspVerLangOf(ver)).includes(bspVerFilter);
     }
 
     function bspVerPositionPanel() {
@@ -112,6 +118,7 @@
     function bspVerDeleteConfirmed(ver) {
       if (!(ver in bibles)) return;
       delete bibles[ver];
+      if (typeof bspForgetBibleLang === 'function') bspForgetBibleLang(ver);
       clearBibleSearchCache(ver);
       if (activeBibleVersion === ver) activeBibleVersion = null;
       idbDelete(STORE_BIBLES, ver).catch(() => {});
@@ -126,17 +133,66 @@
     }
 
     function bspVerRenderList() {
-      const { list, filterWrap } = bspVerEls();
+      const { list, filterWrap, filter } = bspVerEls();
       if (!list) return;
       const keys = bspVerKeys();
 
-      // The filter only earns its space once the list is long enough to need it.
-      if (filterWrap) filterWrap.style.display = keys.length > 6 ? '' : 'none';
+      // Recherche TOUJOURS visible : on tape le nom (ou la langue) et Entrée choisit la version.
+      if (filterWrap) filterWrap.style.display = keys.length ? '' : 'none';
+      if (filter && !filter.placeholder) filter.placeholder = 'Rechercher une version ou une langue…';
 
       list.innerHTML = '';
       bspVerRows = [];
 
-      keys.filter(bspVerMatches).forEach(ver => {
+      // ── Barre de LANGUES (dès qu'au moins une version a une langue) ──
+      const langs = (typeof bspBibleLangsInUse === 'function') ? bspBibleLangsInUse() : [];
+      const noLangCount = keys.filter(v => !bspVerLangOf(v)).length;
+      const useLangs = langs.length > 0;
+      if (bspVerLang && bspVerLang !== BSP_VER_NOLANG && !langs.some(x => x.lang === bspVerLang)) bspVerSetLang('');
+      if (bspVerLang === BSP_VER_NOLANG && !noLangCount) bspVerSetLang('');
+      if (useLangs && !bspVerFilter) {
+        const bar = document.createElement('div');
+        bar.className = 'bsp-ver__langs';
+        const chip = (value, label, count) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'bsp-ver__langchip' + (bspVerLang === value ? ' is-on' : '');
+          const l = document.createElement('span'); l.textContent = label;
+          const c = document.createElement('em'); c.textContent = String(count);
+          b.appendChild(l); b.appendChild(c);
+          // stopPropagation : le re-rendu détache le bouton, le clic « extérieur » fermerait le panneau.
+          b.addEventListener('click', (e) => { e.stopPropagation(); bspVerSetLang(value); bspVerRenderList(); });
+          bar.appendChild(b);
+        };
+        chip('', 'Toutes', keys.length);
+        langs.forEach(x => chip(x.lang, x.lang, x.count));
+        if (noLangCount) chip(BSP_VER_NOLANG, 'Sans langue', noLangCount);
+        list.appendChild(bar);
+      }
+
+      let visible = keys.filter(bspVerMatches);
+      if (useLangs && !bspVerFilter && bspVerLang) {
+        visible = visible.filter(v => bspVerLang === BSP_VER_NOLANG ? !bspVerLangOf(v) : bspVerLangOf(v) === bspVerLang);
+      }
+      // « Toutes » : regroupées par langue (titres), « Sans langue » en dernier.
+      const grouped = useLangs && !bspVerFilter && !bspVerLang;
+      if (grouped) {
+        const order = langs.map(x => x.lang).concat(noLangCount ? [''] : []);
+        visible = order.reduce((acc, l) => acc.concat(visible.filter(v => bspVerLangOf(v) === l)), []);
+      }
+      let lastGroup = null;
+
+      visible.forEach(ver => {
+        if (grouped) {
+          const g = bspVerLangOf(ver);
+          if (g !== lastGroup) {
+            lastGroup = g;
+            const gh = document.createElement('div');
+            gh.className = 'bsp-ver__group';
+            gh.textContent = g || 'Sans langue';
+            list.appendChild(gh);
+          }
+        }
         const idx = bspVerRows.length;
         bspVerRows.push(ver);
 
@@ -165,6 +221,14 @@
         pick.appendChild(dot);
         pick.appendChild(name);
 
+        // En recherche (liste à plat), on montre la langue de chaque version.
+        if (bspVerFilter && bspVerLangOf(ver)) {
+          const tag = document.createElement('span');
+          tag.className = 'bsp-ver__langtag';
+          tag.textContent = bspVerLangOf(ver);
+          pick.appendChild(tag);
+        }
+
         if (isPrimary && isSecondary) {
           // Cannot be both; guard anyway so the UI never renders a contradiction.
           const flag = document.createElement('span');
@@ -186,6 +250,22 @@
 
         pick.addEventListener('click', () => bspVerPick(ver));
 
+        // 🌐 Changer la langue de cette version (classe aussi les Bibles déjà importées).
+        const lg = document.createElement('button');
+        lg.type = 'button';
+        lg.className = 'bsp-ver__langbtn';
+        lg.title = 'Langue : ' + (bspVerLangOf(ver) || '—') + ' (cliquer pour changer)';
+        lg.setAttribute('aria-label', 'Changer la langue de ' + ver);
+        lg.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+        lg.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (typeof bspAskBibleLanguage !== 'function') return;
+          bspVerSetOpen(false);
+          const chosen = await bspAskBibleLanguage(ver, bspVerLangOf(ver));
+          if (chosen !== null && typeof bspSetBibleLang === 'function') bspSetBibleLang(ver, chosen);
+          bspVerSetOpen(true);
+        });
+
         const del = document.createElement('button');
         del.type = 'button';
         del.className = 'bsp-ver__del' + (bspVerPendingDelete === ver ? ' is-confirming' : '');
@@ -198,6 +278,7 @@
         });
 
         row.appendChild(pick);
+        row.appendChild(lg);
         row.appendChild(del);
         list.appendChild(row);
       });

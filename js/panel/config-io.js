@@ -146,7 +146,8 @@
           settings: generalSettings,
           screens: (typeof bspScreensAdded !== 'undefined' && Array.isArray(bspScreensAdded)) ? JSON.parse(JSON.stringify(bspScreensAdded)) : [],
           setlist: bspBuildSetlistData(),
-          subtitles: (typeof bspSubtitlesExport === 'function') ? bspSubtitlesExport() : []
+          subtitles: (typeof bspSubtitlesExport === 'function') ? bspSubtitlesExport() : [],
+          bibleLanguages: (typeof bspBibleLangs === 'object' && bspBibleLangs) ? JSON.parse(JSON.stringify(bspBibleLangs)) : {}
         }
       };
     }
@@ -471,6 +472,7 @@
         const apply = () => {
          try {
           const parts = [];
+          if (d.bibleLanguages && typeof bspBibleLangsMerge === 'function') bspBibleLangsMerge(d.bibleLanguages);
           if (hasDesigns) {
             bspOutputDesigns = JSON.parse(JSON.stringify(d.outputDesigns));
             if (typeof bspOutputDesignsPersist === 'function') bspOutputDesignsPersist();

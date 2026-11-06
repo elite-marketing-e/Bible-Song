@@ -56,6 +56,7 @@
         type: 'PHONE_SYNC',
         ts: Date.now(),
         bibleVersions: Object.keys(bibles),
+        bibleLanguages: (typeof bspBibleLangs === 'object' && bspBibleLangs) ? bspBibleLangs : {},
         songs: songs.map((s, i) => ({ i, title: s.title || ('Chant ' + (i + 1)) })),
         setlist: schedule.map((e, i) => ({
           i,
@@ -92,7 +93,7 @@
         bspPhoneSyncTimer = 0;
         try {
           const msg = bspPhoneBuildSync();
-          const hash = JSON.stringify([msg.bibleVersions, msg.songs, msg.setlist, msg.setlistMeta, msg.subtitles, msg.subtitleLiveId, msg.subtitleLiveByOutput, msg.subtitleOutputs]);
+          const hash = JSON.stringify([msg.bibleVersions, msg.bibleLanguages, msg.songs, msg.setlist, msg.setlistMeta, msg.subtitles, msg.subtitleLiveId, msg.subtitleLiveByOutput, msg.subtitleOutputs]);
           if (hash === bspPhoneSyncLastHash) return;
           bspPhoneSyncLastHash = hash;
           bspPhoneReply(msg);
