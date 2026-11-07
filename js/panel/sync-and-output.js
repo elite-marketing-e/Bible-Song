@@ -1746,9 +1746,10 @@
         ltOffsetX: pickNumber(liveProjection.ltOffsetX, document.getElementById('lt-offset-x')?.value || 0),
         ltOffsetY: pickNumber(liveProjection.ltOffsetY, document.getElementById('lt-offset-y')?.value || 0),
         ltBorderRadius: pickNumber(liveProjection.ltBorderRadius, document.getElementById('lt-border-radius')?.value || 0),
-        padLR: pickNumber(document.getElementById('pad-lr-lt')?.value, 5),
-        padLRFull: pickNumber(document.getElementById('pad-lr-full')?.value, 5),
-        padLRLT: pickNumber(document.getElementById('pad-lr-lt')?.value, 5)
+        // Marges : d'abord le design (profil ou surcharge de la sortie), le formulaire en repli.
+        padLR: pickNumber(liveProjection.padLRLT, document.getElementById('pad-lr-lt')?.value || 5),
+        padLRFull: pickNumber(liveProjection.padLRFull, document.getElementById('pad-lr-full')?.value || 5),
+        padLRLT: pickNumber(liveProjection.padLRLT, document.getElementById('pad-lr-lt')?.value || 5)
       };
     }
 

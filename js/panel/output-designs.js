@@ -226,7 +226,17 @@
       if (!profileOverride || !Object.keys(profileOverride).length) return buildLivePayload();
 
       const saved = captureProjectionSettingsSnapshot();
-      const merged = normalizeProjectionSettingsSnapshot(bspResolveKindKeys(profileOverride), saved);
+      // Ce que la sortie ne surcharge pas hérite du PROFIL DE BASE du contenu à l'antenne — PAS des
+      // champs affichés dans les Réglages (avant : éditer un écran sur l'onglet Songs faisait
+      // déteindre le design Chants sur la Bible à l'antenne, et l'écran changeait selon l'onglet).
+      const liveKindForBase = (typeof livePointer !== 'undefined' && livePointer && livePointer.kind === 'songs') ? 'songs' : 'bible';
+      let inherited = saved;
+      try {
+        if (typeof ensureProjectionSettingsProfiles === 'function') {
+          inherited = normalizeProjectionSettingsSnapshot(ensureProjectionSettingsProfiles()[liveKindForBase], saved);
+        }
+      } catch (_) { inherited = saved; }
+      const merged = normalizeProjectionSettingsSnapshot(bspResolveKindKeys(profileOverride), inherited);
 
       // These three are locked in when the operator goes live and deliberately shadow
       // the settings profile — `effectiveLiveRatio = liveRatio || activeRatio` means

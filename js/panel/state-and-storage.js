@@ -1,9 +1,9 @@
-
-    // Marqueur de build du PANNEAU : permet de vérifier qu'une fenêtre tourne bien sur le
+﻿
+    // Marqueur de build du PANNEAU : permet de vÃ©rifier qu'une fenÃªtre tourne bien sur le
     // DERNIER code, et non une instance Electron ouverte AVANT les correctifs (ou un serveur
-    // 5510 réutilisé). Dans la console du panneau (Ctrl+Shift+I → Console), taper
-    // BSP_PANEL_BUILD, ou lire la ligne « [BSP] PANEL BUILD-… » au chargement.
-    try { window.BSP_PANEL_BUILD = 'PANEL BUILD-48 · 2026-11-07 · bibliothèque partagée Cloud (chants + Bibles via GitHub privé)'; console.log('[BSP] ' + window.BSP_PANEL_BUILD); } catch (_) {}
+    // 5510 rÃ©utilisÃ©). Dans la console du panneau (Ctrl+Shift+I â†’ Console), taper
+    // BSP_PANEL_BUILD, ou lire la ligne Â« [BSP] PANEL BUILD-â€¦ Â» au chargement.
+    try { window.BSP_PANEL_BUILD = 'PANEL BUILD-49 · 2026-11-07 · écrans : design stable entre onglets Bible/Songs, plus de fuite vers le Live'; console.log('[BSP] ' + window.BSP_PANEL_BUILD); } catch (_) {}
 
     // ===== DB =====
     function openDb() {
@@ -51,7 +51,7 @@
       }));
     }
 
-    // Keys only — no values. Boot uses this to learn which bible versions exist without
+    // Keys only â€” no values. Boot uses this to learn which bible versions exist without
     // pulling their (multi-megabyte) parsed verses into memory.
     function idbGetAllKeys(storeName) {
       return openDb().then(db => new Promise((resolve, reject) => {
@@ -65,9 +65,9 @@
 
     // ===== LAZY BIBLE LOADING =====
     // The whole library used to sit parsed in the heap at once (12 versions, ~77 MB of
-    // XML → hundreds of MB of JS objects), which is what produced "out of memory". Now
+    // XML â†’ hundreds of MB of JS objects), which is what produced "out of memory". Now
     // only the active (and dual-secondary) version's verses live in RAM. Every other
-    // version is a SENTINEL — `bibles[name] === null` — so the version LIST still
+    // version is a SENTINEL â€” `bibles[name] === null` â€” so the version LIST still
     // enumerates through Object.keys(bibles) unchanged, while its bytes stay in
     // IndexedDB until actually needed.
     const bibleLoadPromises = {}; // name -> in-flight load, so concurrent asks share one read
@@ -854,7 +854,7 @@
         referenceShadowEnabled, verseShadowEnabled,
         referenceTextCapitalized: document.getElementById('capitalize-ref-text')?.checked,
         refBgEnabled, dualVersionModeEnabled, dualVersionSecondaryId,
-        // Per-output reference/LT box styling — backed by globals (the controls live in
+        // Per-output reference/LT box styling â€” backed by globals (the controls live in
         // the per-screen design panel, not the settings modal).
         refBorderRadius, refBorderWidth, refBorderColor,
         refUnderlineEnabled, refUnderlineColor, refUnderlineThickness,
@@ -941,7 +941,7 @@
 
     function saveProjectionSettingsProfileForTab(tab = getEffectiveSettingsTargetTab()) {
       if (!SETTINGS_TARGET_TABS.includes(tab)) return null;
-      // Editing a screen → write to that output's override, never the base profile.
+      // Editing a screen â†’ write to that output's override, never the base profile.
       if ((tab === 'bible' || tab === 'songs') && bspSettingsOutputIsScreen()) {
         bspSaveSettingsToOutput(settingsTargetOutput, tab);
         return null;
@@ -949,12 +949,12 @@
       const profiles = ensureProjectionSettingsProfiles();
       const prevProfile = profiles[tab];
       const snap = normalizeProjectionSettingsSnapshot(captureProjectionSettingsSnapshot(), prevProfile);
-      // Le MODE (activeRatio) est géré PAR KIND, explicitement, par setRatio /
-      // bspApplyKindModeForOutput (qui écrivent profiles[kind].activeRatio en direct). La
-      // capture générale ci-dessus lit la globale `activeRatio` transitoire, qui reflète le
-      // DERNIER bouton de mode cliqué QUEL QUE SOIT le kind ; l'écrire dans profiles[tab] faisait
-      // fuiter le mode d'un kind vers l'autre (ex. changer le mode du CHANT déplaçait la BIBLE à
-      // l'antenne). On préserve donc le mode déjà persisté pour CE tab — la capture ne le bouge
+      // Le MODE (activeRatio) est gÃ©rÃ© PAR KIND, explicitement, par setRatio /
+      // bspApplyKindModeForOutput (qui Ã©crivent profiles[kind].activeRatio en direct). La
+      // capture gÃ©nÃ©rale ci-dessus lit la globale `activeRatio` transitoire, qui reflÃ¨te le
+      // DERNIER bouton de mode cliquÃ© QUEL QUE SOIT le kind ; l'Ã©crire dans profiles[tab] faisait
+      // fuiter le mode d'un kind vers l'autre (ex. changer le mode du CHANT dÃ©plaÃ§ait la BIBLE Ã 
+      // l'antenne). On prÃ©serve donc le mode dÃ©jÃ  persistÃ© pour CE tab â€” la capture ne le bouge
       // jamais.
       if (prevProfile && prevProfile.activeRatio != null) snap.activeRatio = prevProfile.activeRatio;
       profiles[tab] = snap;
@@ -963,7 +963,7 @@
 
     function getProjectionSettingsSnapshotForTab(tab = getEffectiveSettingsTargetTab()) {
       // While a per-output payload is being rendered, that output's design wins over the
-      // tab profile — and, because callers read this before falling back to the DOM,
+      // tab profile â€” and, because callers read this before falling back to the DOM,
       // over the panel's current UI too.
       if (bspDesignProfileOverride) return bspDesignProfileOverride;
       if (!SETTINGS_TARGET_TABS.includes(tab)) return normalizeProjectionSettingsSnapshot(captureProjectionSettingsSnapshot(), {});
@@ -1123,9 +1123,9 @@
       setDisplay('lt-bible-verse-align-row', isBibleTarget);
       setDisplay('ref-color-field', !isSongsTarget);
       setDisplay('ref-shadow-field', !isSongsTarget);
-      // ref-bg-toggle-row / ref-bg-color-row restent MASQUÉS : l'UI de la boîte de référence
-      // (couleur, arrondi, bordure, souligné) est rendue par bspRenderSettingsBgRef dans
-      // #sm-bg-ref-extra, Bible-only et par sortie. Les <input> hérités restent dans le DOM.
+      // ref-bg-toggle-row / ref-bg-color-row restent MASQUÃ‰S : l'UI de la boÃ®te de rÃ©fÃ©rence
+      // (couleur, arrondi, bordure, soulignÃ©) est rendue par bspRenderSettingsBgRef dans
+      // #sm-bg-ref-extra, Bible-only et par sortie. Les <input> hÃ©ritÃ©s restent dans le DOM.
       setDisplay('full-song-transform-field', isSongsTarget);
       setDisplay('lt-song-transform-field', isSongsTarget);
       setDisplay('full-ref-transform-field', isBibleTarget);
@@ -1301,7 +1301,7 @@
 
     function applyProjectionSettingsProfileForTab(tab, opts = {}) {
       if (!SETTINGS_TARGET_TABS.includes(tab)) return false;
-      // Editing a screen → load THAT output's effective design into the controls AND globals.
+      // Editing a screen â†’ load THAT output's effective design into the controls AND globals.
       if ((tab === 'bible' || tab === 'songs') && bspSettingsOutputIsScreen()) {
         bspLoadSettingsFromOutput(settingsTargetOutput, tab);
         return true;
@@ -1320,13 +1320,13 @@
       updateSettingsTargetControl();
       applyProjectionSettingsProfileForTab(getEffectiveSettingsTargetTab(), { triggerChange: !!opts.triggerChange });
       // When a screen is targeted (Option B) the globals intentionally hold that screen's
-      // design, and the live output is protected inside pushLiveUpdate — so we must NOT reset
+      // design, and the live output is protected inside pushLiveUpdate â€” so we must NOT reset
       // the globals to the on-air base here, or the next capture would clobber the screen.
       const isLockedInactiveTarget = settingsTargetTab !== 'follow' && getEffectiveSettingsTargetTab() !== sidebarTab;
       if (isLockedInactiveTarget && !bspSettingsOutputIsScreen()) {
         applyProjectionRuntimeSnapshot(getProjectionSettingsSnapshotForTab(sidebarTab));
       }
-      // The advanced pages (SD, contour, stroke, ref border) are per-kind → re-render on tab.
+      // The advanced pages (SD, contour, stroke, ref border) are per-kind â†’ re-render on tab.
       if (typeof bspRenderSettingsDesignPages === 'function') bspRenderSettingsDesignPages();
       if (!opts.silent) saveToStorageDebounced();
     }
@@ -1335,20 +1335,20 @@
       setSettingsTargetTab(target || 'bible');
     }
 
-    // ═══ Per-output routing of the Settings modal (output × kind) ═══
+    // â•â•â• Per-output routing of the Settings modal (output Ã— kind) â•â•â•
     // When settingsTargetOutput names a screen, the SAME Settings controls edit that output's
     // design override instead of the base. The base (profiles[bible/songs]) is never written
-    // while a screen is targeted, so the live/OBS render — which reads the base profile, not
-    // the DOM — is unaffected. When settingsTargetOutput is '' everything is exactly as before.
+    // while a screen is targeted, so the live/OBS render â€” which reads the base profile, not
+    // the DOM â€” is unaffected. When settingsTargetOutput is '' everything is exactly as before.
     function bspSettingsOutputIsScreen() {
       return !!settingsTargetOutput && (typeof bspScreensAdded !== 'undefined') &&
         Array.isArray(bspScreensAdded) && bspScreensAdded.some((s) => s.id === settingsTargetOutput);
     }
 
     // Keys the general capture MUST NOT write into a screen override. They have no Settings
-    // DOM control — they live only in runtime globals, which bspLoadSettingsFromOutput resets
+    // DOM control â€” they live only in runtime globals, which bspLoadSettingsFromOutput resets
     // to the BASE (to keep the live output correct). Capturing them would write the base value
-    // over the screen's own (set by the dedicated advanced pages / mode selector) — the cause
+    // over the screen's own (set by the dedicated advanced pages / mode selector) â€” the cause
     // of "the screen reverts to the Live design". These keys are written DIRECTLY, per output,
     // by bspSettingsApplyDesignKey / bspSettingsApplyMode, so the capture leaves them alone.
     const BSP_SETTINGS_OUTPUT_SKIP_KEYS = {
@@ -1364,7 +1364,7 @@
       refBorderWidth: 1, refBorderColor: 1,
       // Reference box style: written directly by the per-output reference controls
       // (bold/italic in Typography ; box on/off + colour + radius + border + underline in the
-      // Background tab, bspRenderSettingsBgRef), so the general capture must leave them alone —
+      // Background tab, bspRenderSettingsBgRef), so the general capture must leave them alone â€”
       // same contract as the border/contour/stroke. refBgColor is here too now that the box
       // colour is driven directly per output (its legacy #ref-bg-color input stays hidden).
       refBgEnabled: 1, refBgColor: 1, refBorderRadius: 1, refBold: 1, refItalic: 1,
@@ -1373,27 +1373,39 @@
 
     // Capture the current controls into the targeted output's override, kind-suffixed for the
     // per-kind keys. Keys equal to the inherited base are dropped so the override stays minimal.
-    // The advanced/global-only keys above are skipped — they are written directly per output.
+    // The advanced/global-only keys above are skipped â€” they are written directly per output.
+    // Photo du formulaire juste aprÃ¨s le chargement d'un Ã©cran (bspLoadSettingsFromOutput). La
+    // sauvegarde n'Ã©crit QUE les champs qui ont changÃ© depuis : avant, elle recopiait TOUT le
+    // formulaire â€” un champ mal rechargÃ© effaÃ§ait un rÃ©glage de l'Ã©cran (ex. sa couleur Bible) et un
+    // champ jamais chargÃ© crÃ©ait un rÃ©glage parasite (ltOffsetYâ€¦), Ã  chaque changement d'onglet.
+    let bspSettingsOutputLoadSnap = null;
     function bspSaveSettingsToOutput(outputId, kind) {
       if (typeof bspGetOutputDesign !== 'function' || typeof bspReplaceOutputDesign !== 'function') return;
       const snap = normalizeProjectionSettingsSnapshot(captureProjectionSettingsSnapshot(), {});
+      const ref = bspSettingsOutputLoadSnap;
+      if (!ref || ref.outputId !== outputId || ref.kind !== kind) return; // pas de rÃ©fÃ©rence fiable : on n'Ã©crit rien
+      const changed = (key) => JSON.stringify(snap[key]) !== JSON.stringify(ref.snap[key]);
       const kindBase = (typeof bspScreenDesignBaseForKind === 'function') ? bspScreenDesignBaseForKind(kind) : {};
       const next = { ...(bspGetOutputDesign(outputId) || {}) };
+      let touched = false;
       PROJECTION_SETTINGS_PROFILE_KEYS.forEach((key) => {
         if (BSP_SETTINGS_OUTPUT_SKIP_KEYS[key]) return; // written directly, never via capture
         if (typeof snap[key] === 'undefined') return;
+        if (!changed(key)) return; // inchangÃ© depuis le chargement : on ne touche pas au rÃ©glage
+        touched = true;
         const split = BSP_KIND_SPLIT_KEYS.indexOf(key) !== -1;
         const sk = split ? (key + '__' + kind) : key;
         if (snap[key] == null || JSON.stringify(snap[key]) === JSON.stringify(kindBase[key])) delete next[sk];
         else next[sk] = snap[key];
       });
-      bspReplaceOutputDesign(outputId, next);
+      ref.snap = snap; // les prochaines sauvegardes comparent Ã  l'Ã©tat actuel
+      if (touched) bspReplaceOutputDesign(outputId, next);
     }
 
     // Load the targeted output's effective design (base + override, kind-resolved) into the
     // Settings controls AND into the runtime globals (Option B). Setting the globals to the
-    // SCREEN — not the base — is what lets every ordinary Settings control (alignment, font,
-    // size, format, case, reference box, padding, shadow…) edit this output through the normal
+    // SCREEN â€” not the base â€” is what lets every ordinary Settings control (alignment, font,
+    // size, format, case, reference box, padding, shadowâ€¦) edit this output through the normal
     // capture path, with no per-control wiring. The live/OBS render stays correct because
     // pushLiveUpdate rebuilds the base from the base profile whenever a screen is targeted.
     // The advanced/global-only keys in the skip list are excluded here: they own dedicated
@@ -1411,6 +1423,8 @@
       });
       applyProjectionSettingsSnapshot(eff, { tab: kind, triggerChange: false });
       applyProjectionRuntimeSnapshot(eff);
+      // RÃ©fÃ©rence pour bspSaveSettingsToOutput : l'Ã©tat du formulaire tel que chargÃ©.
+      bspSettingsOutputLoadSnap = { outputId, kind, snap: normalizeProjectionSettingsSnapshot(captureProjectionSettingsSnapshot(), {}) };
     }
 
     function handleSettingsOutputChange(value) {
@@ -1424,7 +1438,7 @@
       if (typeof saveToStorageDebounced === 'function') saveToStorageDebounced();
     }
 
-    // Which design kind the Settings modal is currently editing (schedule has no design → bible).
+    // Which design kind the Settings modal is currently editing (schedule has no design â†’ bible).
     function bspSettingsDesignKind() {
       const k = (typeof getEffectiveSettingsTargetTab === 'function') ? getEffectiveSettingsTargetTab() : 'bible';
       return (k === 'songs') ? 'songs' : 'bible';
@@ -1432,7 +1446,7 @@
 
     // Read/write a design key for the CURRENT Settings target (Live = base profile for the
     // kind; a screen = its override, kind-suffixed for per-kind keys). Same routing the two
-    // chokepoints use — so the dynamically-rendered advanced pages (SD, contour, stroke,
+    // chokepoints use â€” so the dynamically-rendered advanced pages (SD, contour, stroke,
     // reference border) behave exactly like the rest of Settings, per output.
     function bspSettingsEffectiveDesignKey(baseKey, kind) {
       kind = (kind === 'songs') ? 'songs' : 'bible';
@@ -1462,12 +1476,12 @@
         profiles[kind] = prof;
         // Re-sync the on-air kind's runtime globals so a base edit shows live immediately.
         if (typeof applyProjectionRuntimeSnapshot === 'function') {
-          // INVARIANT : régler un paramètre NON-mode (Inner-edge slant, largeur, marges,
-          // trait…) ne doit JAMAIS changer le mode FS/LT/SD. applyProjectionRuntimeSnapshot
-          // réécrit `activeRatio` depuis le profil du tab — qui peut avoir dérivé du mode réel
-          // (mode posé via setRatio/zone du bas, profil pas encore synchronisé). Résultat :
+          // INVARIANT : rÃ©gler un paramÃ¨tre NON-mode (Inner-edge slant, largeur, marges,
+          // traitâ€¦) ne doit JAMAIS changer le mode FS/LT/SD. applyProjectionRuntimeSnapshot
+          // rÃ©Ã©crit `activeRatio` depuis le profil du tab â€” qui peut avoir dÃ©rivÃ© du mode rÃ©el
+          // (mode posÃ© via setRatio/zone du bas, profil pas encore synchronisÃ©). RÃ©sultat :
           // `activeRatio` retombait en 'full', puis le prochain projectLive faisait
-          // `liveRatio = activeRatio` → retour en Fullscreen quelques secondes après. On
+          // `liveRatio = activeRatio` â†’ retour en Fullscreen quelques secondes aprÃ¨s. On
           // sauvegarde et restaure le mode autour du snapshot (sauf si on change activeRatio).
           const savedActive = (typeof activeRatio !== 'undefined') ? activeRatio : undefined;
           const savedLive = (typeof liveRatio !== 'undefined') ? liveRatio : undefined;
@@ -1482,16 +1496,16 @@
       }
     }
 
-    // ===== SOURCE UNIQUE DU MODE FS/LT/SD (barre du bas ⇄ Settings) =====
-    // Les deux sélecteurs de mode (la zone en bas de l'interface principale ET le segment
+    // ===== SOURCE UNIQUE DU MODE FS/LT/SD (barre du bas â‡„ Settings) =====
+    // Les deux sÃ©lecteurs de mode (la zone en bas de l'interface principale ET le segment
     // Mode des Settings) passent par ICI, pour qu'ils restent toujours synchrones.
     //
-    // Le bug « ça marche pas / conflit » venait d'un DOUBLE stockage du mode de la sortie
-    // Live : la barre du bas écrivait une surcharge `activeRatio__<kind>` sur la sortie
-    // 'obs', tandis que Settings écrivait le `activeRatio` du profil de base. Les deux
-    // divergeaient et se réappliquaient l'un par-dessus l'autre (retour en arrière à
+    // Le bug Â« Ã§a marche pas / conflit Â» venait d'un DOUBLE stockage du mode de la sortie
+    // Live : la barre du bas Ã©crivait une surcharge `activeRatio__<kind>` sur la sortie
+    // 'obs', tandis que Settings Ã©crivait le `activeRatio` du profil de base. Les deux
+    // divergeaient et se rÃ©appliquaient l'un par-dessus l'autre (retour en arriÃ¨re Ã 
     // l'ouverture des Settings, etc.). On unifie : pour Live, le mode vit UNIQUEMENT dans le
-    // profil de base ; pour un écran, dans sa surcharge. Une seule vérité, lue par les deux.
+    // profil de base ; pour un Ã©cran, dans sa surcharge. Une seule vÃ©ritÃ©, lue par les deux.
     function bspApplyKindModeForOutput(targetId, kind, mode) {
       kind = (kind === 'songs') ? 'songs' : 'bible';
       if (['full', '16-9', 'sd-left', 'sd-right'].indexOf(mode) === -1) return;
@@ -1499,25 +1513,25 @@
         Array.isArray(bspScreensAdded) && bspScreensAdded.some((s) => s && s.id === targetId));
 
       if (isScreen) {
-        // Écran : surcharge activeRatio__<kind> (retombe sur le profil si égal à la base).
+        // Ã‰cran : surcharge activeRatio__<kind> (retombe sur le profil si Ã©gal Ã  la base).
         const kindBase = (typeof bspScreenDesignBaseForKind === 'function') ? bspScreenDesignBaseForKind(kind) : {};
         const sk = 'activeRatio__' + kind;
         const next = { ...((typeof bspGetOutputDesign === 'function' && bspGetOutputDesign(targetId)) || {}) };
         if (mode === (kindBase.activeRatio || 'full')) delete next[sk]; else next[sk] = mode;
         if (typeof bspReplaceOutputDesign === 'function') bspReplaceOutputDesign(targetId, next);
       } else {
-        // Live / OBS : SEULE source = le profil de base du kind + pilotage réel de la
+        // Live / OBS : SEULE source = le profil de base du kind + pilotage rÃ©el de la
         // projection. Pas de surcharge 'obs' pour le mode (source du conflit).
         const profiles = ensureProjectionSettingsProfiles();
         const prof = normalizeProjectionSettingsSnapshot(profiles[kind], {});
         prof.activeRatio = mode;
         profiles[kind] = prof;
         if (typeof bspDriveObsLiveMode === 'function') bspDriveObsLiveMode(kind, mode);
-        // Empêcher la désync avec l'état workspace « focused » : régler le mode d'un kind qui
-        // n'est pas celui affiché ne passe pas par setRatio, donc l'état focused de ce kind
+        // EmpÃªcher la dÃ©sync avec l'Ã©tat workspace Â« focused Â» : rÃ©gler le mode d'un kind qui
+        // n'est pas celui affichÃ© ne passe pas par setRatio, donc l'Ã©tat focused de ce kind
         // resterait sur l'ancien mode et le ferait retomber en FS au retour sur l'onglet.
         if (typeof bspSyncFocusedWorkspaceRatioForTab === 'function') bspSyncFocusedWorkspaceRatioForTab(kind, mode);
-        // Migration : purge une éventuelle vieille surcharge 'obs' de mode qui shadowerait.
+        // Migration : purge une Ã©ventuelle vieille surcharge 'obs' de mode qui shadowerait.
         const obsOv = (typeof bspGetOutputDesign === 'function') ? bspGetOutputDesign('obs') : null;
         if (obsOv && (obsOv['activeRatio__' + kind] != null || obsOv.activeRatio != null)) {
           const n = { ...obsOv }; delete n['activeRatio__' + kind]; delete n.activeRatio;
@@ -1526,7 +1540,7 @@
         if (typeof saveToStorageDebounced === 'function') saveToStorageDebounced();
       }
 
-      // Re-render les DEUX sélecteurs : ils lisent désormais la même source.
+      // Re-render les DEUX sÃ©lecteurs : ils lisent dÃ©sormais la mÃªme source.
       if (typeof bspRenderScreenModeZone === 'function') bspRenderScreenModeZone();
       if (typeof bspRenderSettingsModeSelector === 'function') bspRenderSettingsModeSelector();
       if (typeof bspRenderSettingsDesignPages === 'function') bspRenderSettingsDesignPages();
@@ -1535,7 +1549,7 @@
       if (typeof isLive !== 'undefined' && isLive && typeof scheduleLiveUpdate === 'function') scheduleLiveUpdate();
     }
 
-    // Settings → délègue à la source unique (cible = sortie sélectionnée dans Settings).
+    // Settings â†’ dÃ©lÃ¨gue Ã  la source unique (cible = sortie sÃ©lectionnÃ©e dans Settings).
     function bspSettingsApplyMode(mode) {
       bspApplyKindModeForOutput(settingsTargetOutput || 'obs', bspSettingsDesignKind(), mode);
     }
@@ -1548,10 +1562,10 @@
       if (!sel) return;
       const screens = (typeof bspScreensAdded !== 'undefined' && Array.isArray(bspScreensAdded)) ? bspScreensAdded : [];
       if (settingsTargetOutput && !screens.some((s) => s.id === settingsTargetOutput)) {
-        // L'écran ciblé vient d'être supprimé. En Option B les globales ET les contrôles DOM
-        // portaient SON design ; on recharge la base du kind à l'antenne dans les DEUX (la
-        // capture lit d'abord le DOM, ex. le select de casse réf.), sinon la prochaine capture
-        // (cible = Live) écrirait le design de l'écran disparu dans le profil de base.
+        // L'Ã©cran ciblÃ© vient d'Ãªtre supprimÃ©. En Option B les globales ET les contrÃ´les DOM
+        // portaient SON design ; on recharge la base du kind Ã  l'antenne dans les DEUX (la
+        // capture lit d'abord le DOM, ex. le select de casse rÃ©f.), sinon la prochaine capture
+        // (cible = Live) Ã©crirait le design de l'Ã©cran disparu dans le profil de base.
         settingsTargetOutput = '';
         if (typeof getProjectionSettingsSnapshotForTab === 'function') {
           const baseSnap = getProjectionSettingsSnapshotForTab(sidebarTab);
@@ -1573,8 +1587,8 @@
       if (bar) bar.setAttribute('data-scope', onScreen ? 'screen' : 'live');
       if (hintEl) {
         hintEl.textContent = onScreen
-          ? ((typeof t === 'function' && t('settings_output_hint_screen')) || "Réglages propres à cet écran.")
-          : ((typeof t === 'function' && t('settings_output_hint_live')) || "Design de base — s'applique à toute sortie sans réglage propre.");
+          ? ((typeof t === 'function' && t('settings_output_hint_screen')) || "RÃ©glages propres Ã  cet Ã©cran.")
+          : ((typeof t === 'function' && t('settings_output_hint_live')) || "Design de base â€” s'applique Ã  toute sortie sans rÃ©glage propre.");
       }
     }
 

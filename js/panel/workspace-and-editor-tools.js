@@ -1885,7 +1885,10 @@
         setLanguage(currentLanguage, { silent: true });
         // Always open on Live (the base design) so the shared controls start from the base,
         // then populate the output selector with the current screens.
-        if (typeof settingsTargetOutput !== 'undefined') settingsTargetOutput = '';
+        // Revenir PROPREMENT sur Live : si une ancienne cible « écran » traîne, la simple remise à ''
+        // faisait enregistrer le formulaire (qui montre encore l'écran) comme design du LIVE.
+        if (typeof bspSettingsOutputIsScreen === 'function' && bspSettingsOutputIsScreen() && typeof handleSettingsOutputChange === 'function') handleSettingsOutputChange('');
+        else if (typeof settingsTargetOutput !== 'undefined') settingsTargetOutput = '';
         if (typeof setSettingsTargetTab === 'function') {
             setSettingsTargetTab('bible', { silent: true });
         }
@@ -1963,6 +1966,13 @@
         } catch (e) {
           console.error('Style autosave failed on close', e);
         }
+      }
+      // Fermer les Réglages alors qu'un ÉCRAN est édité : enregistrer l'écran puis revenir sur Live
+      // (formulaire + état d'exécution). Sinon l'app restait « sur l'écran » : les contrôles du
+      // panneau éditaient l'écran, et la réouverture recopiait le design de l'écran dans le Live.
+      if (id === 'settingsModal' && typeof bspSettingsOutputIsScreen === 'function' && bspSettingsOutputIsScreen() &&
+          typeof handleSettingsOutputChange === 'function') {
+        try { handleSettingsOutputChange(''); } catch (e) { console.warn('[BSP] retour Live à la fermeture', e); }
       }
       const modal = document.getElementById(id);
       if (modal) {
