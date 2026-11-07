@@ -172,11 +172,15 @@
       const head = ref.object.sha;
       const commit = await bspCloudApi('/git/commits/' + head);
       const tree = await bspCloudApi('/git/trees/' + commit.tree.sha + '?recursive=1');
-      const files = {};
+      const files = {}, shared = {};
       (tree.tree || []).forEach((e) => {
-        if (e.type === 'blob' && /^(songs|bibles)\/[^/]+\.json$/.test(e.path)) files[e.path] = e.sha;
+        if (e.type !== 'blob') return;
+        if (/^(songs|bibles)\/[^/]+\.json$/.test(e.path)) files[e.path] = e.sha;
+        else if (/^shared\/(setlists|subtitles)\/[^/]+\.json$/.test(e.path)) shared[e.path] = e.sha;
       });
-      return { head, treeSha: commit.tree.sha, files };
+      // Setlists & sous-titres partagés : listing seulement (récupération manuelle, cf. cloud-shared.js).
+      if (typeof bspCloudSharedIngest === 'function') { try { await bspCloudSharedIngest(head, shared); } catch (_) {} }
+      return { head, treeSha: commit.tree.sha, files, shared };
     }
     async function bspCloudGetBlobJson(sha) {
       const b = await bspCloudApi('/git/blobs/' + sha);
@@ -430,8 +434,9 @@
       try {
         const ref = await bspCloudApi('/git/ref/heads/' + encodeURIComponent(bspCloudCfg.branch || 'main'));
         const head = ref.object.sha;
-        if (head === bspCloudState.head) { bspCloudStatus.remote = { songs: 0, bibles: 0, head }; }
-        else if (head !== bspCloudStatus.remote.head) {
+        const sharedStale = (typeof bspCloudSharedHead === 'function') && bspCloudSharedHead() !== head;
+        if (head === bspCloudState.head && !sharedStale) { bspCloudStatus.remote = { songs: 0, bibles: 0, head }; }
+        else if (head !== bspCloudStatus.remote.head || sharedStale) {
           const remote = await bspCloudFetchRemote();
           let s = 0, b = 0;
           Object.keys(remote.files).forEach((p) => {
@@ -442,9 +447,11 @@
         }
         bspCloudStatus.error = '';
         const r = bspCloudStatus.remote;
-        if ((r.songs || r.bibles) && head !== bspCloudLastNotifiedHead && !(opts && opts.silent)) {
+        const sp = (typeof bspCloudSharedPending === 'function') ? bspCloudSharedPending() : { setlist: 0, subtitles: 0 };
+        if ((r.songs || r.bibles || sp.setlist || sp.subtitles) && head !== bspCloudLastNotifiedHead && !(opts && opts.silent)) {
           bspCloudLastNotifiedHead = head;
-          if (typeof showToast === 'function') showToast('☁ Cloud : ' + bspCloudSummary(r.songs, r.bibles) + ' à récupérer');
+          const what = [r.songs || r.bibles ? bspCloudSummary(r.songs, r.bibles) : '', bspCloudSharedSummary(sp)].filter(Boolean).join(' + ');
+          if (typeof showToast === 'function') showToast('☁ Cloud : ' + what + ' à récupérer');
         }
       } catch (err) {
         bspCloudStatus.error = (err && err.message) || String(err);
@@ -511,7 +518,8 @@
       if (!btn) return;
       const badge = document.getElementById('btn-cloud-badge');
       const r = bspCloudStatus.remote, l = bspCloudStatus.local;
-      const down = (r.songs || 0) + (r.bibles || 0), up = (l.songs || 0) + (l.bibles || 0);
+      const sp = (typeof bspCloudSharedPending === 'function') ? bspCloudSharedPending() : { setlist: 0, subtitles: 0 };
+      const down = (r.songs || 0) + (r.bibles || 0) + sp.setlist + sp.subtitles, up = (l.songs || 0) + (l.bibles || 0);
       const days = bspCloudDaysLeft();
       btn.classList.toggle('is-busy', bspCloudBusy);
       btn.classList.toggle('is-error', !!bspCloudStatus.error || (days != null && days <= 0));
@@ -522,7 +530,7 @@
       else if (days != null && days <= 30) { txt = '!'; cls = 'warn'; }
       if (badge) { badge.textContent = txt; badge.className = 'bsp-cloud-badge ' + cls; badge.style.display = txt ? '' : 'none'; }
       btn.title = !bspCloudConfigured() ? 'Bibliothèque partagée (Cloud) — à configurer'
-        : (down ? ('Cloud : ' + bspCloudSummary(r.songs, r.bibles) + ' à récupérer') : (up ? ('Cloud : ' + bspCloudSummary(l.songs, l.bibles) + ' à envoyer') : 'Cloud : à jour'));
+        : (down ? ('Cloud : ' + [r.songs || r.bibles ? bspCloudSummary(r.songs, r.bibles) : '', bspCloudSharedSummary(sp)].filter(Boolean).join(' + ') + ' à récupérer') : (up ? ('Cloud : ' + bspCloudSummary(l.songs, l.bibles) + ' à envoyer') : 'Cloud : à jour'));
     }
     function bspCloudTogglePopover(force) {
       let pop = document.getElementById('bsp-cloud-pop');
@@ -560,11 +568,13 @@
             <button class="b" data-act="push" ${bspCloudBusy ? 'disabled' : ''}>↑ Mettre à jour sur le Cloud</button>
             <button class="b ghost" data-act="pull" ${bspCloudBusy ? 'disabled' : ''}>↓ Récupérer</button>
           </div>
+          <div class="shr"><span>Setlists & sous-titres${(() => { const sp = (typeof bspCloudSharedPending === 'function') ? bspCloudSharedPending() : null; const t = sp ? bspCloudSharedSummary(sp) : ''; return t ? ' — <b class="nw">' + esc(t) + '</b>' : ''; })()}</span><button class="b ghost" data-act="shared">Ouvrir…</button></div>
           <button class="lnk" data-act="settings">Réglages du cloud…</button>`;
       }
       pop.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
         const a = b.getAttribute('data-act');
         if (a === 'settings') { bspCloudTogglePopover(false); bspCloudOpenSettings(); }
+        else if (a === 'shared') { if (typeof bspCloudOpenShared === 'function') bspCloudOpenShared(); }
         else bspCloudRun(a);
       }));
     }
@@ -584,7 +594,7 @@
       const secure = bspCloudSecureStore();
       box.innerHTML = `
         <label class="settings-label">Bibliothèque partagée (Cloud GitHub)</label>
-        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px">Chants et Bibles partagés entre les PC. Seules les nouveautés et modifications sont envoyées ; les suppressions restent locales.</div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:8px">Chants et Bibles partagés entre les PC. Seules les nouveautés et modifications sont envoyées ; les suppressions restent locales. Setlists et sous-titres : publiés par un PC, récupérés à la demande (menu ☁ → « Setlists & sous-titres »).</div>
         <div class="bsp-cloud-grid">
           <span>Dépôt</span><input id="bsp-cloud-repo" class="settings-input" value="${esc(bspCloudCfg.repo)}" placeholder="propriétaire/dépôt" spellcheck="false">
           <span>Nom de ce poste</span><input id="bsp-cloud-station" class="settings-input" value="${esc(bspCloudCfg.station)}" placeholder="Ex. Régie, Bureau pasteur" maxlength="40">
@@ -647,6 +657,8 @@
         .bsp-cloud-pop .row span{color:var(--text-secondary,#9fb0cc)}
         .bsp-cloud-pop .warn{color:#f59e0b}.bsp-cloud-pop .err{color:var(--danger,#ff453a)}.bsp-cloud-pop .msg{color:#9be9a8}
         .bsp-cloud-pop .acts{display:flex;gap:6px}
+        .bsp-cloud-pop .shr{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid rgba(255,255,255,.08);padding-top:8px}
+        .bsp-cloud-pop .shr .b{flex:none}.bsp-cloud-pop .shr .nw{color:#9be9a8}
         .bsp-cloud-pop .det{font-size:11px;color:var(--text-secondary,#9fb0cc);max-height:160px;overflow:auto}
         .bsp-cloud-pop .det summary{cursor:pointer;color:#f59e0b}
         .bsp-cloud-pop .det div{padding:2px 0}

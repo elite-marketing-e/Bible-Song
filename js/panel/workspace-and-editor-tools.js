@@ -1938,7 +1938,7 @@
         // autres modales…) : y cliquer n'est PAS un clic « à l'extérieur ». Avant, chaque clic dans
         // la fenêtre Presets fermait les Réglages ; à la réouverture ils repartaient sur « Live »,
         // et le preset capturait le Live au lieu de l'écran qu'on réglait.
-        const BSP_OVER_SETTINGS = '.bsp-fx-overlay, .bsp-fx-confirm, .bsp-blang, .bsp-cloud-pop, .modal-overlay:not(#settingsModal)';
+        const BSP_OVER_SETTINGS = '.bsp-fx-overlay, .bsp-fx-confirm, .bsp-blang, .bsp-cloud-pop, .bsp-cshare, .modal-overlay:not(#settingsModal)';
         const overlayAbove = () => Array.from(document.querySelectorAll(BSP_OVER_SETTINGS))
           .some((el) => el.offsetParent !== null || getComputedStyle(el).position === 'fixed' && getComputedStyle(el).display !== 'none');
         modal._escHandler = modal._escHandler || function(e) {

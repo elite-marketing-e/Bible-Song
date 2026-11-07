@@ -373,6 +373,9 @@
           <button type="button" id="bsp-slh-save" class="bsp-slh__btn" onclick="bspExportSetlist()" title="Export this setlist" data-i18n-title="setlist_save_title" aria-label="Export setlist">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           </button>
+          <button type="button" id="bsp-slh-cloud" class="bsp-slh__btn" onclick="bspCloudOpenShared('setlist')" title="Publier / récupérer des setlists sur le Cloud" aria-label="Setlists sur le Cloud">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H7a5 5 0 1 1 1.1-9.88A6 6 0 0 1 19.5 11 4 4 0 0 1 17.5 19z"/></svg>
+          </button>
           <button type="button" id="bsp-slh-section" class="bsp-slh__btn" onclick="bspAddSetlistSection()" title="Add section" data-i18n-title="setlist_add_section_title" aria-label="Add section">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="17" x2="20" y2="17"/><rect x="8" y="10" width="8" height="4" rx="1"/></svg>
           </button>
@@ -3783,6 +3786,7 @@
           <button class="bsp-st-tbtn accent" onclick="bspAddSubtitle('note')" data-i18n="subtitle_add_note">+ Note</button>
           <span style="width:1px;height:22px;background:rgba(255,255,255,.12);margin:0 2px"></span>
           <button class="bsp-st-tbtn" onclick="bspSubtitlesExportPreset()" title="Exporter les sous-titres (.eeamsub)" data-i18n="subtitle_preset_export">⤒ Exporter</button>
+          <button class="bsp-st-tbtn" onclick="bspCloudOpenShared('subtitles')" title="Publier / récupérer des packs de sous-titres sur le Cloud">☁ Cloud</button>
           <button class="bsp-st-tbtn" onclick="bspSubtitlesImportPreset()" title="Importer un preset de sous-titres (.eeamsub)" data-i18n="subtitle_preset_import">⤓ Importer</button>
           <button class="bsp-st-tbtn" onclick="closeModal('subtitleModal')" data-i18n="common_close">Close</button>
         </div>
@@ -3832,6 +3836,7 @@
   <script src="js/panel/output-presets.js"></script>
   <script src="js/panel/config-io.js"></script>
   <script src="js/panel/cloud-library.js"></script>
+  <script src="js/panel/cloud-shared.js"></script>
   <script src="js/panel/quick-edit.js"></script>
   <script src="js/panel/setlist-header.js"></script>
   <script src="js/panel/media-bank.js"></script>
