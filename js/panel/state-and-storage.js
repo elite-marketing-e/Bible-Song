@@ -3,7 +3,7 @@
     // DERNIER code, et non une instance Electron ouverte AVANT les correctifs (ou un serveur
     // 5510 réutilisé). Dans la console du panneau (Ctrl+Shift+I → Console), taper
     // BSP_PANEL_BUILD, ou lire la ligne « [BSP] PANEL BUILD-… » au chargement.
-    try { window.BSP_PANEL_BUILD = 'PANEL BUILD-51 · 2026-11-07 · cloud : setlists & packs de sous-titres partagés (récupération manuelle)'; console.log('[BSP] ' + window.BSP_PANEL_BUILD); } catch (_) {}
+    try { window.BSP_PANEL_BUILD = 'PANEL BUILD-52 · 2026-11-07 · sous-titres : « Arrêter » sur la ligne du sous-titre + « Tout arrêter » en haut'; console.log('[BSP] ' + window.BSP_PANEL_BUILD); } catch (_) {}
 
     // ===== DB =====
     function openDb() {

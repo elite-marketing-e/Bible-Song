@@ -496,52 +496,22 @@
       if (!sub) return '—';
       return bspSubtitleTypeLabel(sub.type) + ' — ' + (sub.value || sub.label || '—');
     }
-    // Barre fixe en haut de la fenêtre : une ligne par sortie diffusée + « Couper » + « Tout couper ».
+    // En haut de la colonne de gauche : UN bouton « Tout arrêter » (actif dès qu'un sous-titre est
+    // à l'antenne, sur n'importe quelle sortie). L'arrêt d'UN sous-titre se fait sur sa ligne.
     function bspRenderSubtitleOnAir() {
       const el = document.getElementById('subtitle-onair');
       if (!el) return;
-      const entries = bspSubtitleLiveEntries();
+      const n = bspSubtitleLiveEntries().length;
       el.innerHTML = '';
-      el.classList.toggle('is-on', entries.length > 0);
-      const head = document.createElement('span');
-      head.className = 'oa-h';
-      head.textContent = bspSubtitleT('subtitle_onair', "À l'antenne");
-      el.appendChild(head);
-      if (!entries.length) {
-        const none = document.createElement('span');
-        none.className = 'oa-none';
-        none.textContent = bspSubtitleT('subtitle_onair_none', 'Aucun sous-titre à l’écran');
-        el.appendChild(none);
-        return;
-      }
-      const list = document.createElement('div');
-      list.className = 'oa-list';
-      entries.forEach((e) => {
-        const chip = document.createElement('div');
-        chip.className = 'oa-chip';
-        const where = document.createElement('span');
-        where.className = 'oa-where';
-        where.textContent = bspSubtitleOutputName(e.target);
-        const name = document.createElement('button');
-        name.type = 'button'; name.className = 'oa-name';
-        name.textContent = bspSubtitleShortName(e.id);
-        name.title = bspSubtitleT('subtitle_onair_open', 'Ouvrir ce sous-titre');
-        name.onclick = () => { if (bspGetSubtitle(e.id)) bspSelectSubtitle(e.id); };
-        const cut = document.createElement('button');
-        cut.type = 'button'; cut.className = 'oa-cut';
-        cut.textContent = '■ ' + bspSubtitleT('subtitle_onair_cut', 'Couper');
-        cut.title = bspSubtitleT('subtitle_onair_cut_title', 'Masquer ce sous-titre sur cette sortie');
-        cut.onclick = () => bspSubtitleHideLive(e.target);
-        chip.appendChild(where); chip.appendChild(name); chip.appendChild(cut);
-        list.appendChild(chip);
-      });
-      el.appendChild(list);
-      const all = document.createElement('button');
-      all.type = 'button'; all.className = 'oa-all';
-      all.textContent = '■ ' + bspSubtitleT('subtitle_onair_cut_all', 'Tout couper');
-      all.title = bspSubtitleT('subtitle_onair_cut_all_title', 'Masquer tous les sous-titres sur toutes les sorties');
-      all.onclick = () => bspSubtitleHideAll();
-      el.appendChild(all);
+      el.classList.toggle('is-on', n > 0);
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'oa-stopall';
+      b.disabled = !n;
+      b.textContent = n ? ('■ ' + bspSubtitleT('subtitle_onair_cut_all', 'Tout arrêter') + (n > 1 ? ' (' + n + ')' : ''))
+        : bspSubtitleT('subtitle_onair_none', 'Rien à l’antenne');
+      b.title = n ? bspSubtitleT('subtitle_onair_cut_all_title', 'Arrêter tous les sous-titres sur toutes les sorties') : '';
+      b.onclick = () => bspSubtitleHideAll();
+      el.appendChild(b);
     }
     // Rafraîchit l'état LIVE (barre, badges de la liste, boutons de l'éditeur) SANS reconstruire
     // l'éditeur (pas de perte de saisie / d'aperçu en cours).
@@ -555,17 +525,26 @@
       if (!listEl) return;
       const entries = bspSubtitleLiveEntries();
       listEl.querySelectorAll('.bsp-st-row').forEach((row) => {
-        const old = row.querySelector('.bsp-st-livebadge');
+        const old = row.querySelector('.bsp-st-stops');
         if (old) old.remove();
         const mine = entries.filter((e) => e.id === row.dataset.subId);
         row.classList.toggle('is-live', mine.length > 0);
         if (!mine.length) return;
-        const b = document.createElement('span');
-        b.className = 'bsp-st-livebadge';
-        b.textContent = mine.some((e) => e.target === 'all') ? 'LIVE' : bspSubtitleOutputName(mine[0].target) + (mine.length > 1 ? ' +' + (mine.length - 1) : '');
-        b.title = mine.map((e) => bspSubtitleOutputName(e.target)).join(', ');
         const meta = row.querySelector('.meta');
-        if (meta && meta.nextSibling) row.insertBefore(b, meta.nextSibling); else row.appendChild(b);
+        if (!meta) return;
+        const box = document.createElement('div');
+        box.className = 'bsp-st-stops';
+        mine.forEach((e) => {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'bsp-st-stop';
+          // Une seule sortie : « Arrêter » + où ; plusieurs : le nom de chaque sortie.
+          const where = (e.target === 'all') ? bspSubtitleT('subtitle_target_all_short', 'Partout') : bspSubtitleOutputName(e.target); // court : colonne étroite
+          b.textContent = '■ ' + (mine.length === 1 ? bspSubtitleT('subtitle_stop', 'Arrêter') + ' · ' : '') + where;
+          b.title = bspSubtitleT('subtitle_onair_cut_title', 'Arrêter sur cette sortie') + ' — ' + bspSubtitleOutputName(e.target);
+          b.onclick = (ev) => { ev.stopPropagation(); bspSubtitleHideLive(e.target); };
+          box.appendChild(b);
+        });
+        row.appendChild(box); // ligne pleine largeur sous le sous-titre
       });
     }
     window.bspSubtitleHideAll = bspSubtitleHideAll;
