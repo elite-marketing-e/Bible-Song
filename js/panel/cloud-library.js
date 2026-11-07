@@ -224,7 +224,13 @@
         if (idx == null && doc.id != null && byId.has(String(doc.id))) idx = byId.get(String(doc.id));
         if (idx == null) {
           const tk = (typeof bspSongTitleKey === 'function') ? bspSongTitleKey(doc.title) : String(doc.title || '').toLowerCase().trim();
-          if (tk && byTitle.has(tk)) idx = byTitle.get(tk);
+          // Par titre UNIQUEMENT si ce chant local n'est pas déjà relié à un AUTRE fichier : deux chants
+          // différents au même titre (ex. deux « Alléluia ») restent deux chants, sans écrasement.
+          if (tk && byTitle.has(tk)) {
+            const cand = byTitle.get(tk);
+            const l = songs[cand] && bspCloudState.links['song:' + songs[cand].id];
+            if (!l || l === p) idx = cand;
+          }
         }
         if (idx == null) {
           // Nouveau chant pour ce PC : on reprend l'id du cloud s'il est libre.
@@ -255,6 +261,8 @@
             rec.updatedAt = Number(doc.updatedAt || 0) || Date.now();
             toPut.push(rec);
             songs[idx] = hydrateSongFromRecord(rec);
+            // Les copies du chant dans la SETLIST (même id) reçoivent aussi les nouvelles paroles.
+            if (typeof bspSyncSongEditAcross === 'function') { try { bspSyncSongEditAcross(songs[idx]); } catch (_) {} }
             res.songsUpdated++;
           }
         }
