@@ -154,6 +154,24 @@
       bspOutputPresetsPersist();
       return true;
     }
+    // Met à jour un preset EXISTANT avec le design actuel d'une sortie (garde id, nom et type) —
+    // plus besoin d'en recréer un à chaque retouche.
+    function bspOutputPresetUpdate(id, outputId) {
+      const p = bspOutputPresets.find(x => x.id === id);
+      if (!p) return false;
+      const kind = bspOutputPresetNormalizeKind(p.kind);
+      if (kind === 'both') {
+        p.designs = { bible: bspOutputPresetDesignFor(outputId, 'bible'), songs: bspOutputPresetDesignFor(outputId, 'songs') };
+        delete p.design;
+      } else {
+        p.design = bspOutputPresetDesignFor(outputId, kind);
+        delete p.designs;
+      }
+      p.updatedAt = Date.now();
+      bspOutputPresetsPersist();
+      return true;
+    }
+
     function bspOutputPresetRename(id, name) {
       const p = bspOutputPresets.find(x => x.id === id);
       if (!p) return false;
@@ -294,6 +312,7 @@
     // Icônes monochromes (SVG stroke, viewBox 24) — cohérentes avec le reste de l'app.
     function bspFxIcon(name, size) {
       const paths = {
+        update: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
         rename: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
         export: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
         import: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
@@ -304,7 +323,7 @@
     }
 
     // Confirmation rendue DANS l'overlay des presets (donc toujours au-dessus de lui).
-    function bspFxConfirm(title, message, onConfirm) {
+    function bspFxConfirm(title, message, onConfirm, okLabel, okStyle) {
       const host = document.getElementById('bsp-fx-overlay') || document.body;
       const layer = document.createElement('div');
       layer.className = 'bsp-fx-confirm';
@@ -315,7 +334,7 @@
           <p class="bsp-fx-confirm__msg">${esc(message)}</p>
           <div class="bsp-fx-confirm__row">
             <button class="bsp-fx-btn ghost" data-act="cancel">Annuler</button>
-            <button class="bsp-fx-btn danger" data-act="ok">Supprimer</button>
+            <button class="bsp-fx-btn ${okStyle === 'primary' ? '' : 'danger'}" data-act="ok">${esc(okLabel || 'Supprimer')}</button>
           </div>
         </div>`;
       const close = () => layer.remove();
@@ -373,6 +392,7 @@
               <span class="bsp-fx-badge ${bspOutputPresetNormalizeKind(p.kind)}">${bspOutputPresetKindLabel(bspOutputPresetNormalizeKind(p.kind))}</span>
               <input class="bsp-fx-item__name" value="${esc(p.name)}" data-act="rename" title="Cliquez pour renommer" />
               <button class="bsp-fx-iconbtn" data-act="renamebtn" title="Renommer">${bspFxIcon('rename')}</button>
+              <button class="bsp-fx-iconbtn" data-act="update" title="Mettre à jour ce preset avec le design actuel de la sortie choisie ci-dessus">${bspFxIcon('update')}</button>
               <button class="bsp-fx-btn" data-act="apply" title="Appliquer à la sortie choisie ci-dessus">Appliquer</button>
               <button class="bsp-fx-iconbtn" data-act="export" title="Exporter ce preset (.eeamfx)">${bspFxIcon('export')}</button>
               <button class="bsp-fx-iconbtn danger" data-act="delete" title="Supprimer">${bspFxIcon('trash')}</button>
@@ -397,7 +417,7 @@
                 <input class="bsp-fx-input" data-act="newname" placeholder="Nom du preset (ex. Écran salle — Bible)" />
                 <button class="bsp-fx-btn" data-act="capture">+ Capturer le design de cette sortie</button>
               </div>
-              <div class="bsp-fx-note" style="margin-top:8px">« Capturer » fige TOUT le design de la sortie (typographie, couleurs, arrière-plan, SD, contour, référence…) pour le type choisi. « Appliquer » l'applique à la sortie choisie ci-dessus (${esc(outLabel)}).</div>
+              <div class="bsp-fx-note" style="margin-top:8px">« Capturer » fige TOUT le design de la sortie (typographie, couleurs, arrière-plan, SD, contour, référence…) pour le type choisi. « Appliquer » l'applique à la sortie choisie ci-dessus (${esc(outLabel)}) ; ↻ met à jour un preset existant avec le design actuel de cette sortie.</div>
             </div>
             ${listHtml}
           </div>
@@ -444,6 +464,18 @@
         }
         const renameBtn = row.querySelector('[data-act="renamebtn"]');
         if (renameBtn && nameInput) renameBtn.onclick = () => { nameInput.focus(); nameInput.select(); };
+        const updBtn = row.querySelector('[data-act="update"]');
+        if (updBtn) updBtn.onclick = () => {
+          const p = bspOutputPresets.find(x => x.id === id);
+          const outName = (bspOutputPresetOutputOptions().find(o => o.id === bspFxWorkingOutput) || {}).label || 'la sortie';
+          bspFxConfirm('Mettre à jour le preset',
+            'Remplacer le contenu de « ' + (p ? p.name : '') + ' » (' + bspOutputPresetKindLabel(bspOutputPresetNormalizeKind(p && p.kind)) + ') par le design actuel de « ' + outName + ' » ? Le nom est conservé.',
+            () => {
+              const ok = bspOutputPresetUpdate(id, bspFxWorkingOutput);
+              if (typeof showToast === 'function') showToast(ok ? ('Preset « ' + (p ? p.name : '') + ' » mis à jour') : 'Échec');
+              bspRenderOutputPresetsModal();
+            }, 'Mettre à jour', 'primary');
+        };
         const applyBtn = row.querySelector('[data-act="apply"]');
         if (applyBtn) applyBtn.onclick = () => {
           const ok = bspOutputPresetApply(id, bspFxWorkingOutput);
