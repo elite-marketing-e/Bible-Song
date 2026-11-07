@@ -44,6 +44,7 @@
     let bspSubtitlePreviewOn = false; // aperçu (dans le pop-up) : true = entrée jouée/affichée
     let bspSubtitleLiveId = null; // sous-titre diffusé PARTOUT ('all')
     let bspSubtitleLiveByOutput = {}; // plays ISOLÉS : outputId ('obs'|'remote_N') -> subId
+    let bspSubtitleEditorLiveRefresh = null; // met à jour Live/▶ de l'éditeur ouvert sans le reconstruire
     let bspLocalFonts = []; // polices installées sur le PC (via queryLocalFonts, sur demande)
     let bspSubtitleDesignOutput = 'obs'; // sortie éditée dans le pop-up ('obs'=Live/base, sinon écran)
     let bspSubtitleWork = null;          // objet de travail persistant { id, outId, obj } (voir getWork)
@@ -435,7 +436,7 @@
       if (target === 'all') bspSubtitleLiveId = sub.id; else bspSubtitleLiveByOutput[target] = sub.id;
       bspSubtitleBroadcast('show', sub, target);
       if (typeof showToast === 'function') showToast(bspSubtitleT('subtitle_broadcasting', 'Sous-titre diffusé') + (target !== 'all' ? ' — ' + bspSubtitleOutputName(target) : ''));
-      bspRenderSubtitleLibrary();
+      bspSubtitleRefreshLiveUi();
       if (typeof bspPhoneScheduleSyncBroadcast === 'function') bspPhoneScheduleSyncBroadcast();
     }
     function bspSubtitleHideLive(target) {
@@ -443,7 +444,7 @@
       if (target === 'all') bspSubtitleLiveId = null; else delete bspSubtitleLiveByOutput[target];
       bspSubtitleBroadcast('hide', null, target);
       if (typeof showToast === 'function') showToast(bspSubtitleT('subtitle_hidden', 'Sous-titre masqué'));
-      bspRenderSubtitleLibrary();
+      bspSubtitleRefreshLiveUi();
       if (typeof bspPhoneScheduleSyncBroadcast === 'function') bspPhoneScheduleSyncBroadcast();
     }
     // Sous-titre actuellement live pour une cible ('all' ou un outputId).
@@ -457,6 +458,120 @@
       if (bspSubtitleLiveFor(target) === wanted) bspSubtitleHideLive(target);
       else bspSubtitleGoLive(wanted, target);
     }
+    // ── « À L'ANTENNE » : ce qui est RÉELLEMENT diffusé, quel que soit le sous-titre ouvert ──
+    // Une entrée par cible : 'all' (Live = partout) puis chaque play isolé (outputId).
+    function bspSubtitleLiveEntries() {
+      const out = [];
+      if (bspSubtitleLiveId) out.push({ target: 'all', id: bspSubtitleLiveId });
+      Object.keys(bspSubtitleLiveByOutput || {}).forEach((tg) => {
+        if (bspSubtitleLiveByOutput[tg]) out.push({ target: tg, id: bspSubtitleLiveByOutput[tg] });
+      });
+      return out;
+    }
+    function bspSubtitleAnyLive() { return bspSubtitleLiveEntries().length > 0; }
+    // Masque TOUS les sous-titres de TOUTES les sorties (un seul message non ciblé : chaque écran
+    // masque le sien, play isolé compris).
+    function bspSubtitleHideAll(opts) {
+      opts = opts || {};
+      if (!bspSubtitleAnyLive()) return false;
+      bspSubtitleLiveId = null;
+      Object.keys(bspSubtitleLiveByOutput).forEach((k) => { delete bspSubtitleLiveByOutput[k]; });
+      bspSubtitleBroadcast('hide', null, 'all');
+      if (!opts.silent && typeof showToast === 'function') showToast(bspSubtitleT('subtitle_all_hidden', 'Sous-titres masqués'));
+      bspSubtitleRefreshLiveUi();
+      if (typeof bspPhoneScheduleSyncBroadcast === 'function') bspPhoneScheduleSyncBroadcast();
+      return true;
+    }
+    // Un nouveau contenu (verset/chant) part à l'antenne : les écrans font SORTIR le sous-titre
+    // GLOBAL (enchaînement sous-titre → contenu, cf. BSP_display). On reflète cet état, sinon la
+    // barre « À l'antenne » et le bouton Live le croiraient encore affiché. Les plays isolés restent.
+    function bspSubtitleOnContentUpdate() {
+      if (!bspSubtitleLiveId) return;
+      bspSubtitleLiveId = null;
+      bspSubtitleRefreshLiveUi();
+      if (typeof bspPhoneScheduleSyncBroadcast === 'function') bspPhoneScheduleSyncBroadcast();
+    }
+    function bspSubtitleShortName(id) {
+      const sub = bspGetSubtitle(id);
+      if (!sub) return '—';
+      return bspSubtitleTypeLabel(sub.type) + ' — ' + (sub.value || sub.label || '—');
+    }
+    // Barre fixe en haut de la fenêtre : une ligne par sortie diffusée + « Couper » + « Tout couper ».
+    function bspRenderSubtitleOnAir() {
+      const el = document.getElementById('subtitle-onair');
+      if (!el) return;
+      const entries = bspSubtitleLiveEntries();
+      el.innerHTML = '';
+      el.classList.toggle('is-on', entries.length > 0);
+      const head = document.createElement('span');
+      head.className = 'oa-h';
+      head.textContent = bspSubtitleT('subtitle_onair', "À l'antenne");
+      el.appendChild(head);
+      if (!entries.length) {
+        const none = document.createElement('span');
+        none.className = 'oa-none';
+        none.textContent = bspSubtitleT('subtitle_onair_none', 'Aucun sous-titre à l’écran');
+        el.appendChild(none);
+        return;
+      }
+      const list = document.createElement('div');
+      list.className = 'oa-list';
+      entries.forEach((e) => {
+        const chip = document.createElement('div');
+        chip.className = 'oa-chip';
+        const where = document.createElement('span');
+        where.className = 'oa-where';
+        where.textContent = bspSubtitleOutputName(e.target);
+        const name = document.createElement('button');
+        name.type = 'button'; name.className = 'oa-name';
+        name.textContent = bspSubtitleShortName(e.id);
+        name.title = bspSubtitleT('subtitle_onair_open', 'Ouvrir ce sous-titre');
+        name.onclick = () => { if (bspGetSubtitle(e.id)) bspSelectSubtitle(e.id); };
+        const cut = document.createElement('button');
+        cut.type = 'button'; cut.className = 'oa-cut';
+        cut.textContent = '■ ' + bspSubtitleT('subtitle_onair_cut', 'Couper');
+        cut.title = bspSubtitleT('subtitle_onair_cut_title', 'Masquer ce sous-titre sur cette sortie');
+        cut.onclick = () => bspSubtitleHideLive(e.target);
+        chip.appendChild(where); chip.appendChild(name); chip.appendChild(cut);
+        list.appendChild(chip);
+      });
+      el.appendChild(list);
+      const all = document.createElement('button');
+      all.type = 'button'; all.className = 'oa-all';
+      all.textContent = '■ ' + bspSubtitleT('subtitle_onair_cut_all', 'Tout couper');
+      all.title = bspSubtitleT('subtitle_onair_cut_all_title', 'Masquer tous les sous-titres sur toutes les sorties');
+      all.onclick = () => bspSubtitleHideAll();
+      el.appendChild(all);
+    }
+    // Rafraîchit l'état LIVE (barre, badges de la liste, boutons de l'éditeur) SANS reconstruire
+    // l'éditeur (pas de perte de saisie / d'aperçu en cours).
+    function bspSubtitleRefreshLiveUi() {
+      bspRenderSubtitleOnAir();
+      bspSubtitleRenderListBadges();
+      if (typeof bspSubtitleEditorLiveRefresh === 'function') { try { bspSubtitleEditorLiveRefresh(); } catch (_) {} }
+    }
+    function bspSubtitleRenderListBadges() {
+      const listEl = document.getElementById('subtitle-lib-list');
+      if (!listEl) return;
+      const entries = bspSubtitleLiveEntries();
+      listEl.querySelectorAll('.bsp-st-row').forEach((row) => {
+        const old = row.querySelector('.bsp-st-livebadge');
+        if (old) old.remove();
+        const mine = entries.filter((e) => e.id === row.dataset.subId);
+        row.classList.toggle('is-live', mine.length > 0);
+        if (!mine.length) return;
+        const b = document.createElement('span');
+        b.className = 'bsp-st-livebadge';
+        b.textContent = mine.some((e) => e.target === 'all') ? 'LIVE' : bspSubtitleOutputName(mine[0].target) + (mine.length > 1 ? ' +' + (mine.length - 1) : '');
+        b.title = mine.map((e) => bspSubtitleOutputName(e.target)).join(', ');
+        const meta = row.querySelector('.meta');
+        if (meta && meta.nextSibling) row.insertBefore(b, meta.nextSibling); else row.appendChild(b);
+      });
+    }
+    window.bspSubtitleHideAll = bspSubtitleHideAll;
+    window.bspSubtitleAnyLive = bspSubtitleAnyLive;
+    window.bspSubtitleOnContentUpdate = bspSubtitleOnContentUpdate;
+
     function bspSubtitleOutputName(id) {
       if (id === 'all') return bspSubtitleT('subtitle_target_all', 'Tous les écrans');
       if (id === 'obs') return bspSubtitleT('subtitle_output_live', 'Live');
@@ -835,8 +950,15 @@
       btn.className = 'bsp-st-btn preview' + (bspSubtitlePreviewOn ? ' on' : '');
       btn.textContent = (bspSubtitlePreviewOn ? '■ ' : '▶ ') + bspSubtitleT(bspSubtitlePreviewOn ? 'subtitle_preview_off' : 'subtitle_preview_on', bspSubtitlePreviewOn ? 'Aperçu : sortie' : 'Aperçu : entrée');
     }
-    function bspStyleSubtitleLiveBtn(btn, isLive) {
-      btn.className = 'bsp-st-btn live' + (isLive ? ' on' : '');
+    // otherLiveId : un AUTRE sous-titre est diffusé partout → le bouton devient « Remplacer ».
+    function bspStyleSubtitleLiveBtn(btn, isLive, otherLiveId) {
+      btn.className = 'bsp-st-btn live' + (isLive ? ' on' : '') + (otherLiveId ? ' swap' : '');
+      if (otherLiveId) {
+        btn.textContent = '⇄ ' + bspSubtitleT('subtitle_live_replace', 'Live : remplacer');
+        btn.title = bspSubtitleT('subtitle_live_replace_title', 'Remplace le sous-titre diffusé :') + ' ' + bspSubtitleShortName(otherLiveId);
+        return;
+      }
+      btn.title = '';
       btn.textContent = (isLive ? '● ' : '◉ ') + bspSubtitleT(isLive ? 'subtitle_live_off' : 'subtitle_live_on', isLive ? 'Live : masquer' : 'Live : diffuser');
     }
 
@@ -852,6 +974,7 @@
       const listEl = document.getElementById('subtitle-lib-list');
       const edEl = document.getElementById('subtitle-editor');
       if (!listEl || !edEl) return;
+      bspRenderSubtitleOnAir();
       // Liste
       listEl.innerHTML = '';
       if (!bspSubtitles.length) {
@@ -893,10 +1016,12 @@
         row.appendChild(grip); row.appendChild(dot); row.appendChild(txt); row.appendChild(dup); row.appendChild(del);
         listEl.appendChild(row);
       });
+      bspSubtitleRenderListBadges();
       // Éditeur
       const sub = bspGetSubtitle(bspSubtitleSelectedId);
       edEl.innerHTML = '';
       if (!sub) {
+        bspSubtitleEditorLiveRefresh = null;
         const hint = document.createElement('div');
         hint.style.cssText = 'padding:24px;color:var(--text-secondary);font-size:13px;text-align:center';
         hint.textContent = bspSubtitleT('subtitle_pick_hint', 'Sélectionnez ou créez un sous-titre pour l’éditer.');
@@ -936,8 +1061,7 @@
       playBar.appendChild(previewBtn);
       const liveBtn = document.createElement('button');
       liveBtn.type = 'button';
-      bspStyleSubtitleLiveBtn(liveBtn, bspSubtitleLiveId === sub.id);
-      liveBtn.onclick = () => { bspSubtitleToggleLive(sub.id); bspStyleSubtitleLiveBtn(liveBtn, bspSubtitleLiveId === sub.id); };
+      liveBtn.onclick = () => { bspSubtitleToggleLive(sub.id); };
       playBar.appendChild(liveBtn);
       // ── Routage : sélecteur de SORTIE (barre distincte) + play isolé + reprendre le Live ──
       const outWrap = document.createElement('div');
@@ -963,13 +1087,27 @@
         outWrap.appendChild(resetBtn);
       }
       // PLAY ISOLÉ : projette/masque UNIQUEMENT la sortie sélectionnée.
-      const isoLive = (bspSubtitleLiveFor(editOut) === sub.id);
       const isoBtn = document.createElement('button');
-      isoBtn.type = 'button'; isoBtn.className = 'iso' + (isoLive ? ' on' : '');
-      isoBtn.title = bspSubtitleT('subtitle_play_isolated', 'Projeter cette sortie seule');
-      isoBtn.textContent = isoLive ? '■' : '▶';
+      isoBtn.type = 'button';
       isoBtn.onclick = () => { bspSubtitleToggleLive(sub.id, editOut); };
       outWrap.appendChild(isoBtn);
+      // État des 2 boutons, recalculé à chaque changement d'antenne (barre, téléphone, verset…).
+      const subId = sub.id;
+      bspSubtitleEditorLiveRefresh = (force) => {
+        if (!force && !liveBtn.isConnected) return; // éditeur remplacé entre-temps
+        const liveAll = bspSubtitleLiveFor('all');
+        bspStyleSubtitleLiveBtn(liveBtn, liveAll === subId, liveAll && liveAll !== subId ? liveAll : null);
+        const liveIso = bspSubtitleLiveFor(editOut);
+        const isoOn = (liveIso === subId);
+        isoBtn.className = 'iso' + (isoOn ? ' on' : '') + (liveIso && !isoOn ? ' swap' : '');
+        isoBtn.textContent = isoOn ? '■' : '▶';
+        isoBtn.title = isoOn
+          ? bspSubtitleT('subtitle_iso_stop', 'Masquer sur cette sortie')
+          : (liveIso
+            ? bspSubtitleT('subtitle_iso_replace', 'Remplacer sur cette sortie :') + ' ' + bspSubtitleShortName(liveIso)
+            : bspSubtitleT('subtitle_play_isolated', 'Projeter cette sortie seule'));
+      };
+      bspSubtitleEditorLiveRefresh(true); // 1er rendu : pas encore attaché au DOM
       playBar.appendChild(outWrap);
       wrap.appendChild(playBar);
 

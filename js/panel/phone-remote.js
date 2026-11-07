@@ -271,7 +271,7 @@
         }
 
         if (type === 'PHONE_CLEAR') {
-          if (typeof clearOutput === 'function') clearOutput({ fade: true });
+          if (typeof clearOutput === 'function') clearOutput({ fade: true, withSubtitles: true });
           return;
         }
 

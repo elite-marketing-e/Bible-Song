@@ -1667,6 +1667,8 @@
         ...payload
       };
       broadcastMessage(msg);
+      // Les écrans font sortir le sous-titre GLOBAL à chaque nouveau contenu : on le reflète.
+      if (typeof bspSubtitleOnContentUpdate === 'function') { try { bspSubtitleOnContentUpdate(); } catch (_) {} }
       try {
         if (window.parent && window.parent !== window) {
           window.parent.postMessage({ source: 'bsp-panel-parent', message: msg }, '*');

@@ -636,7 +636,7 @@
 
       <div class="live-controls">
         <div class="nav-row has-screens">
-          <button class="btn" style="background:#444;padding:0 6px" onclick="clearOutput()"><span data-i18n="common_clear">Clear</span></button>
+          <button class="btn" style="background:#444;padding:0 6px" onclick="clearOutput({ withSubtitles: true })" title="1er clic : efface le verset/chant — 2e clic : masque aussi les sous-titres"><span data-i18n="common_clear">Clear</span></button>
           <button class="btn btn-live" id="btn-project-live" style="white-space:nowrap;padding:0 14px;min-width:126px" onclick="projectLive(true)"><span data-i18n="common_project_live">Project Live</span></button>
           <div id="bsp-screens" class="bsp-screens">
             <!-- title/aria-label carry the name once the label is hidden on a narrow dock -->
@@ -3749,6 +3749,28 @@
     .bsp-st-subblock.collapsed .bh { margin-bottom:0; }
     .bsp-st-shead:hover, .bsp-st-subblock .bh:hover { color:#cdd6ea; }
     .bsp-st-grip { cursor:grab; color:#7d8ba6; font-size:15px; user-select:none; }
+
+    /* Barre « À l'antenne » (toujours visible, indépendante du sous-titre ouvert) */
+    .bsp-st-onair { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 10px; border-radius:12px;
+      background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.07); min-height:40px; }
+    .bsp-st-onair.is-on { background:rgba(225,29,72,.08); border-color:rgba(255,77,79,.45); }
+    .bsp-st-onair .oa-h { font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:#8ea0bd; display:inline-flex; align-items:center; gap:6px; }
+    .bsp-st-onair .oa-h::before { content:''; width:8px; height:8px; border-radius:50%; background:#4b5568; }
+    .bsp-st-onair.is-on .oa-h { color:#ff8a8f; }
+    .bsp-st-onair.is-on .oa-h::before { background:#ff4d4f; box-shadow:0 0 0 3px rgba(255,77,79,.25); }
+    .bsp-st-onair .oa-none { font-size:12px; color:#7d8ba6; }
+    .bsp-st-onair .oa-list { display:flex; gap:8px; flex-wrap:wrap; flex:1 1 auto; min-width:0; }
+    .bsp-st-onair .oa-chip { display:flex; align-items:center; gap:6px; padding:3px 4px 3px 10px; border-radius:10px; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.08); min-width:0; }
+    .bsp-st-onair .oa-where { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:#ffb4b6; white-space:nowrap; }
+    .bsp-st-onair .oa-name { background:none; border:0; color:#e7ecf3; font-size:12.5px; font-weight:600; cursor:pointer; padding:2px 4px; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border-radius:6px; }
+    .bsp-st-onair .oa-name:hover { background:rgba(255,255,255,.08); }
+    .bsp-st-onair .oa-cut, .bsp-st-onair .oa-all { border:0; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:800; cursor:pointer; color:#fff; background:linear-gradient(140deg,#ff4d4f,#e11d48); white-space:nowrap; }
+    .bsp-st-onair .oa-all { margin-left:auto; box-shadow:0 4px 12px rgba(230,40,70,.35); }
+    .bsp-st-onair .oa-cut:hover, .bsp-st-onair .oa-all:hover { filter:brightness(1.1); }
+    .bsp-st-row.is-live { border-color:rgba(255,77,79,.55); }
+    .bsp-st-livebadge { flex:none; font-size:9px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:#fff; background:#e11d48; padding:3px 6px; border-radius:6px; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .bsp-st-btn.live.swap { background:linear-gradient(140deg,#f59e0b,#d97706); color:#1f1300; box-shadow:0 5px 16px rgba(230,150,20,.32); }
+    .bsp-st-route .iso.swap { outline:2px solid rgba(245,158,11,.7); }
   </style>
   <div id="subtitleModal" class="modal-overlay">
     <div class="modal-content" style="width:min(1000px,96vw);max-height:90vh;padding:16px;display:flex;flex-direction:column;gap:12px;overflow:hidden">
@@ -3765,6 +3787,7 @@
           <button class="bsp-st-tbtn" onclick="closeModal('subtitleModal')" data-i18n="common_close">Close</button>
         </div>
       </div>
+      <div id="subtitle-onair" class="bsp-st-onair"></div>
       <div style="display:flex;gap:16px;flex:1 1 auto;min-height:0;overflow:hidden">
         <div id="subtitle-lib-list" class="bsp-st-list" style="border:1px solid rgba(255,255,255,.06);border-radius:12px;background:rgba(0,0,0,.15)"></div>
         <div id="subtitle-editor" class="bsp-st-editor"></div>

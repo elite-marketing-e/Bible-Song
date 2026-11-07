@@ -1,4 +1,18 @@
+    // opts.withSubtitles (bouton « Effacer » du panneau + téléphone) : EFFACER EN 2 TEMPS.
+    //   1er clic : efface le verset/chant ; les sous-titres isolés restent (ex. nom de l'orateur).
+    //   2e clic (plus de contenu) : masque aussi tous les sous-titres.
+    //   Un sous-titre GLOBAL recouvre déjà le contenu → il part dès le 1er clic (sinon rien ne
+    //   bougerait à l'écran).
     function clearOutput(opts = {}) {
+      if (opts.withSubtitles && typeof bspSubtitleAnyLive === 'function' && bspSubtitleAnyLive()) {
+        const globalUp = (typeof bspSubtitleLiveId !== 'undefined') && !!bspSubtitleLiveId;
+        if (!isLive || globalUp) {
+          bspSubtitleHideAll();
+          if (!isLive) return;
+        } else if (typeof showToast === 'function') {
+          setTimeout(() => showToast(t('subtitle_clear_again')), 0);
+        }
+      }
       isLive = false;
       liveKind = null;
       livePointer = null;
