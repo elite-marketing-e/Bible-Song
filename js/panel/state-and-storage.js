@@ -446,7 +446,10 @@
     }
 
     function persistBibleVersion(name) {
-      const data = bibles[name] || [];
+      // Version déchargée de la mémoire (sentinelle null du chargement à la demande) : NE PAS
+      // l'enregistrer — « bibles[name] || [] » aurait écrasé la Bible en base par une version VIDE.
+      if (!Array.isArray(bibles[name])) return Promise.resolve(false);
+      const data = bibles[name];
       const record = buildBibleRecord(name, data);
       return idbPut(STORE_BIBLES, record);
     }

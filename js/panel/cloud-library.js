@@ -31,7 +31,7 @@
     const bspCloudPendingDirty = new Set();
     let bspCloudPollTimer = 0;
     let bspCloudLastNotifiedHead = '';
-    let bspCloudStatus = { remote: { songs: 0, bibles: 0, head: '' }, local: { songs: 0, bibles: 0 }, lastSync: 0, error: '', message: '' };
+    let bspCloudStatus = { remote: { songs: 0, bibles: 0, head: '' }, local: { songs: 0, bibles: 0 }, lastSync: 0, error: '', message: '', bibleIssues: {} };
 
     // ── Config / token / état ─────────────────────────────────────────────────
     function bspCloudLoadCfg() {
@@ -314,6 +314,7 @@
       const remote = await bspCloudFetchRemote();
       // D'abord récupérer : fusionne ce que les autres PC ont envoyé (le plus récent gagne).
       const pulled = await bspCloudPull(remote);
+      bspCloudStatus.bibleIssues = {};
       const entries = [];      // { path, content } (chants, inline) | { path, sha } (Bibles, blob)
       const nextFiles = {};    // path -> ck (sha connu après le commit)
       const existing = new Set(Object.keys(remote.files));
@@ -344,7 +345,12 @@
         if (bspCloudState.files[p] && !bspCloudState.dirtyBibles[name]) continue;
         const rec = await idbGet(STORE_BIBLES, name).catch(() => null);
         const parsed = (rec && Array.isArray(rec.parsedData)) ? rec.parsedData : (Array.isArray(bibles[name]) ? bibles[name] : null);
-        if (!parsed || !parsed.length) continue;
+        if (!parsed || !parsed.length) {
+          // Versets illisibles sur ce PC : on le DIT (avant : ignorée en silence, restait « à envoyer »).
+          bspCloudStatus.bibleIssues[name] = rec ? 'versets introuvables dans la base (enregistrement sans données)' : 'version absente de la base de ce PC';
+          continue;
+        }
+        delete bspCloudStatus.bibleIssues[name];
         const language = (typeof bspBibleLangOf === 'function') ? bspBibleLangOf(name) : '';
         const body = JSON.stringify({ name, language, parsedData: parsed });
         const ck = bspCloudCk(body);
@@ -407,6 +413,17 @@
       Object.keys(bibles || {}).forEach((n) => { if (!bspCloudState.files[bspCloudBiblePath(n)] || bspCloudState.dirtyBibles[n]) b++; });
       bspCloudStatus.local = { songs: s, bibles: b };
     }
+    // Détail des Bibles « à envoyer » et pourquoi (diagnostic affiché dans le popover).
+    function bspCloudPendingBibles() {
+      return Object.keys(bibles || {}).map((n) => {
+        const p = bspCloudBiblePath(n);
+        let why = '';
+        if (bspCloudStatus.bibleIssues[n]) why = '⚠ ' + bspCloudStatus.bibleIssues[n];
+        else if (!bspCloudState.files[p]) why = 'jamais envoyée depuis ce PC';
+        else if (bspCloudState.dirtyBibles[n]) why = 'modifiée sur ce PC (import / langue)';
+        return why ? { name: n, why } : null;
+      }).filter(Boolean);
+    }
     // Vérification légère du cloud (1 requête ; l'arbre seulement si le cloud a changé).
     async function bspCloudCheckRemote(opts) {
       if (!bspCloudConfigured() || bspCloudBusy) return;
@@ -462,7 +479,8 @@
         } else {
           const r = await bspCloudPush((what, info) => { bspCloudStatus.message = (what === 'bible' ? 'Envoi de la Bible ' + info : 'Envoi ' + info) + '…'; bspCloudRenderPopover(); });
           const got = r.pulled ? (r.pulled.songsAdded + r.pulled.songsUpdated) : 0;
-          bspCloudStatus.message = (r.pushed ? ('Envoyé : ' + bspCloudSummary(r.songs, r.bibles) + '.') : 'Rien de nouveau à envoyer.') +
+          const nIssues = Object.keys(bspCloudStatus.bibleIssues).length;
+          bspCloudStatus.message = (nIssues ? '⚠ ' + nIssues + ' Bible(s) non envoyée(s) : versets illisibles sur ce PC (voir « Pourquoi »). ' : '') + (r.pushed ? ('Envoyé : ' + bspCloudSummary(r.songs, r.bibles) + '.') : 'Rien de nouveau à envoyer.') +
             ((got || (r.pulled && r.pulled.bibles)) ? ' Récupéré : ' + bspCloudSummary(got, r.pulled.bibles) + '.' : '');
         }
         bspCloudStatus.lastSync = Date.now();
@@ -534,6 +552,7 @@
         pop.innerHTML = `<div class="h">Bibliothèque partagée (Cloud)</div>
           <div class="row"><span>À récupérer</span><b>${esc(bspCloudSummary(r.songs, r.bibles))}</b></div>
           <div class="row"><span>À envoyer</span><b>${esc(bspCloudSummary(l.songs, l.bibles))}</b></div>
+          ${l.bibles ? `<details class="det"><summary>Pourquoi ${l.bibles} Bible${l.bibles > 1 ? 's' : ''} ?</summary>${bspCloudPendingBibles().slice(0, 30).map((x) => `<div><b>${esc(x.name)}</b> — ${esc(x.why)}</div>`).join('')}</details>` : ''}
           ${days != null && days <= 30 ? `<div class="warn">${days <= 0 ? 'Le token a expiré : créez-en un nouveau.' : 'Le token expire dans ' + days + ' jour' + (days > 1 ? 's' : '') + '.'}</div>` : ''}
           ${bspCloudStatus.error ? `<div class="err">${esc(bspCloudStatus.error)}</div>` : ''}
           ${bspCloudStatus.message ? `<div class="msg">${esc(bspCloudStatus.message)}</div>` : ''}
@@ -628,6 +647,9 @@
         .bsp-cloud-pop .row span{color:var(--text-secondary,#9fb0cc)}
         .bsp-cloud-pop .warn{color:#f59e0b}.bsp-cloud-pop .err{color:var(--danger,#ff453a)}.bsp-cloud-pop .msg{color:#9be9a8}
         .bsp-cloud-pop .acts{display:flex;gap:6px}
+        .bsp-cloud-pop .det{font-size:11px;color:var(--text-secondary,#9fb0cc);max-height:160px;overflow:auto}
+        .bsp-cloud-pop .det summary{cursor:pointer;color:#f59e0b}
+        .bsp-cloud-pop .det div{padding:2px 0}
         .bsp-cloud-pop .b{flex:1;background:var(--accent,#0a84ff);color:#fff;border:0;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer}
         .bsp-cloud-pop .b.ghost{background:rgba(255,255,255,.08);color:var(--text,#e8edf6)}
         .bsp-cloud-pop .b:disabled{opacity:.5;cursor:default}
