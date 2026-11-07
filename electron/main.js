@@ -19,8 +19,9 @@
  *     - le relais WS/le téléphone/les médias marchent sans changement.
  */
 
-const { app, BrowserWindow, ipcMain, screen, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, shell, safeStorage } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const { fork } = require('child_process');
 
@@ -307,6 +308,28 @@ function registerIpc() {
   ipcMain.handle('bsp:close-output', (_e, outputId) => closeOutputWindow(outputId));
   ipcMain.handle('bsp:list-open-outputs', () => Array.from(outputWindows.keys()));
   // Fondu de visibilité demandé par une page d'affichage (écrans uniquement, jamais le Live 'obs').
+  // ── Secrets (token du cloud) chiffrés par l'OS (safeStorage = DPAPI sous Windows) ──
+  // Stockés dans userData/bsp-secrets.json, jamais en clair. Clés autorisées uniquement.
+  const SECRET_KEYS = new Set(['cloudToken']);
+  const secretsFile = () => path.join(app.getPath('userData'), 'bsp-secrets.json');
+  const readSecrets = () => { try { return JSON.parse(fs.readFileSync(secretsFile(), 'utf8')) || {}; } catch (_) { return {}; } };
+  ipcMain.handle('bsp:secret-get', (_e, key) => {
+    if (!SECRET_KEYS.has(key)) return null;
+    const enc = readSecrets()[key];
+    if (!enc) return null;
+    try { return safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(Buffer.from(enc, 'base64')) : null; } catch (_) { return null; }
+  });
+  ipcMain.handle('bsp:secret-set', (_e, key, value) => {
+    if (!SECRET_KEYS.has(key)) return { ok: false, error: 'clé non autorisée' };
+    const all = readSecrets();
+    if (!value) delete all[key];
+    else {
+      if (!safeStorage.isEncryptionAvailable()) return { ok: false, error: 'chiffrement indisponible' };
+      all[key] = safeStorage.encryptString(String(value)).toString('base64');
+    }
+    try { fs.writeFileSync(secretsFile(), JSON.stringify(all), { mode: 0o600 }); return { ok: true }; }
+    catch (err) { return { ok: false, error: String((err && err.message) || err) }; }
+  });
   ipcMain.on('bsp:output-visibility', (e, visible, fadeMs) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     const id = outputIdOfWindow(win);

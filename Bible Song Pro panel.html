@@ -407,6 +407,7 @@
           <span id="btn-update-label" style="display:none;margin-left:6px;font-size:11px;font-weight:800;white-space:nowrap"></span>
           <span id="btn-update-dot" style="display:none;position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px var(--bg-dark,#0d1017)"></span>
         </button>
+        <button class="btn toolbar-icon-btn" id="btn-cloud" onclick="bspCloudTogglePopover()" title="Bibliothèque partagée (Cloud)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg><span id="btn-cloud-badge" class="bsp-cloud-badge" style="display:none"></span></button>
         <div class="annotate-wrap">
           <button class="btn toolbar-icon-btn" id="btn-annotate" title="Annotate" data-i18n-title="ui_annotate">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:block">
@@ -2271,6 +2272,7 @@
                 <button class="btn" style="width:100%" onclick="bspTriggerSongsImport()">⬆️ <span data-i18n="cfg_import_songs">Import songs only</span></button>
               </div>
             </div>
+            <div class="settings-field" id="bsp-cloud-settings" style="margin-bottom:12px"></div>
             <div class="settings-field" style="margin-bottom:12px">
               <label class="settings-label" data-i18n="settings_language">Language</label>
               <select id="language-select" class="settings-select" onchange="handleLanguageChange()"></select>
@@ -3806,6 +3808,7 @@
   <script src="js/panel/output-design-editor.js"></script>
   <script src="js/panel/output-presets.js"></script>
   <script src="js/panel/config-io.js"></script>
+  <script src="js/panel/cloud-library.js"></script>
   <script src="js/panel/quick-edit.js"></script>
   <script src="js/panel/setlist-header.js"></script>
   <script src="js/panel/media-bank.js"></script>

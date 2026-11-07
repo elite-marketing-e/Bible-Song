@@ -34,6 +34,9 @@ contextBridge.exposeInMainWorld('BSPDesktop', {
   checkForUpdates: () => ipcRenderer.invoke('bsp:update-check'),
   downloadUpdate: () => ipcRenderer.invoke('bsp:update-download'),
   installUpdateNow: () => ipcRenderer.invoke('bsp:update-install'),
+  // Secrets chiffrés par l'OS (token du cloud). Clés autorisées côté main uniquement.
+  secretGet: (key) => ipcRenderer.invoke('bsp:secret-get', key),
+  secretSet: (key, value) => ipcRenderer.invoke('bsp:secret-set', key, value),
   // cb reçoit { state:'checking'|'available'|'none'|'downloading'|'downloaded'|'error', version, percent, message }.
   onUpdateStatus: (cb) => {
     const h = (_e, data) => { try { cb(data); } catch (_) {} };

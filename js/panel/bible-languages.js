@@ -66,6 +66,7 @@
       const l = String(label || '').trim().slice(0, 60);
       if (l) bspBibleLangs[ver] = l; else delete bspBibleLangs[ver];
       bspBibleLangsPersist();
+      if (typeof bspCloudMarkBibleDirty === 'function') bspCloudMarkBibleDirty(ver);
       if (typeof bspSyncBibleVersionDropdown === 'function') bspSyncBibleVersionDropdown();
       if (typeof bspPhoneScheduleSyncBroadcast === 'function') bspPhoneScheduleSyncBroadcast();
     }

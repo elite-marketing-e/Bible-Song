@@ -3,7 +3,7 @@
     // DERNIER code, et non une instance Electron ouverte AVANT les correctifs (ou un serveur
     // 5510 réutilisé). Dans la console du panneau (Ctrl+Shift+I → Console), taper
     // BSP_PANEL_BUILD, ou lire la ligne « [BSP] PANEL BUILD-… » au chargement.
-    try { window.BSP_PANEL_BUILD = 'PANEL BUILD-47 · 2026-11-06 · perf annulation (plus de copie des Bibles) + sous-titres : photo, adaptation du texte, sections repliables'; console.log('[BSP] ' + window.BSP_PANEL_BUILD); } catch (_) {}
+    try { window.BSP_PANEL_BUILD = 'PANEL BUILD-48 · 2026-11-07 · bibliothèque partagée Cloud (chants + Bibles via GitHub privé)'; console.log('[BSP] ' + window.BSP_PANEL_BUILD); } catch (_) {}
 
     // ===== DB =====
     function openDb() {
@@ -116,6 +116,7 @@
     function idbPut(storeName, value) {
       if (storeName === STORE_SONGS) queueRelayStatePush({ includeSongs: true });
       if (storeName === STORE_BIBLES) queueRelayStatePush({ includeBibles: true });
+      if (storeName === STORE_BIBLES && value && value.id && typeof bspCloudMarkBibleDirty === 'function') bspCloudMarkBibleDirty(value.id);
       return openDb().then(db => new Promise((resolve, reject) => {
         const tx = db.transaction(storeName, 'readwrite');
         const store = tx.objectStore(storeName);
