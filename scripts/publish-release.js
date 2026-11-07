@@ -51,7 +51,15 @@ let existing = null;
 if (view.status === 0) { try { existing = JSON.parse(view.stdout); } catch (_) {} }
 if (existing && !existing.isDraft) {
   const names = (existing.assets || []).map((a) => a.name);
-  if ([exe, blockmap, latest].every((f) => names.includes(path.basename(f)))) { console.log(`\n✓ ${tag} est déjà publié et complet. Rien à faire.`); process.exit(0); }
+  if ([exe, blockmap, latest].every((f) => names.includes(path.basename(f)))) {
+    // Même numéro mais installeur DIFFÉRENT (rebuild après des modifs) : on ne remplace pas un
+    // release déjà distribué (les PC qui l'ont installé ne verraient pas la MAJ) → monter la version.
+    const online = (existing.assets || []).find((a) => a.name === path.basename(exe));
+    if (online && Number(online.size) !== fs.statSync(exe).size) {
+      fail(`${tag} est déjà publié avec un AUTRE installeur (build plus ancien).\n  Le nouveau build doit avoir un numéro plus élevé :\n    npm run bump\n  puis git commit/push, « npm run dist » et « npm run release:gh ».`);
+    }
+    console.log(`\n✓ ${tag} est déjà publié et complet (même installeur). Rien à faire.`); process.exit(0);
+  }
 }
 if (!existing) {
   step('Création du release en brouillon (blockmap + latest.yml)');
