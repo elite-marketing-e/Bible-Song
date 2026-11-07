@@ -2,65 +2,81 @@
 
 Deux choses **différentes** sur GitHub :
 
-| | Commande | Contenu | Onglet GitHub | Qui |
-|---|---|---|---|---|
-| **Code source** | `git push origin main` | fichiers .js/.html… | **Code** | Claude / mainteneur |
-| **Installeur (MAJ)** | `npm run publish` | `.exe` + `latest.yml` (+ `.blockmap`) | **Releases** | Toi, sur Windows |
+| | Commande | Contenu | Onglet GitHub |
+|---|---|---|---|
+| **Code source** | `git push origin main` | fichiers .js/.html… | **Code** |
+| **Installeur (MAJ)** | `npm run dist` puis `npm run release:gh` | `.exe` + `.exe.blockmap` + `latest.yml` | **Releases** |
 
-Le bouton « Rechercher une MAJ » dans l'app lit **une Release PUBLIÉE** (pas un brouillon).
-Le `git push` ne déclenche **aucune** MAJ pour les users — seul un Release publié le fait.
-
----
-
-## Prérequis (une seule fois) — le token GitHub
-
-1. github.com → **Settings** (profil) → **Developer settings** → **Personal access tokens** → **Fine-grained tokens** → *Generate new token*.
-2. **Resource owner** : `elite-marketing-e`.
-3. **Repository access** : *Only select repositories* → **Bible-Song**.
-4. **Permissions** → **Contents : Read and write** (c'est la seule nécessaire).
-5. *Generate* → **copie le token** (`github_pat_...`), on ne le revoit plus.
-
-(Alternative « Classic » : scope `public_repo`.)
-
-Optionnel : mettre `GH_TOKEN` en variable d'environnement Windows permanente pour ne pas le retaper.
+Le bouton « Rechercher une MAJ » de l'app lit **le dernier Release PUBLIÉ** (jamais un brouillon).
+Un `git push` seul ne déclenche **aucune** mise à jour chez les users.
 
 ---
 
-## Publier une version
+## Prérequis (une seule fois)
 
-**Étape 1 — le code (fait par Claude, ou toi) :** bump de la version dans `package.json` + `git push origin main`.
-La version publiée = celle de `package.json`. Elle doit être **> celle installée** chez les users.
+1. Installer **GitHub CLI** : https://cli.github.com (installeur Windows).
+2. Dans un terminal, se connecter avec le compte `elite-marketing-e` :
+   ```bash
+   gh auth login
+   ```
+   Choisir : *GitHub.com* → *HTTPS* → *Login with a web browser*, puis valider dans le navigateur.
 
-**Étape 2 — l'installeur (toi, sur Windows) :**
+> Pas besoin de token « GH_TOKEN » pour cette méthode : `gh` utilise ta connexion.
+
+---
+
+## Publier une version (3 commandes)
+
+**1. Monter la version** (si ce n'est pas déjà fait) puis pousser le code :
 ```bash
-set GH_TOKEN=github_pat_ton_token
-npm run publish
+npm version patch --no-git-tag-version
 ```
-- `npm run publish` build l'installeur de la **version courante** (sans re-bump) et crée un **brouillon de Release** sur GitHub avec `.exe`, `.exe.blockmap`, `latest.yml`.
-- ⚠️ Lance-le **UNE seule fois** par version. Le relancer crée un **doublon** de brouillon (fichiers éclatés → MAJ cassée).
-- N'utilise `npm run release:publish` **que** si tu veux que la commande **bump aussi** la version elle-même (workflow solo, sans Claude).
-
-**Étape 3 — publier le brouillon (toi, sur GitHub) :**
-1. github.com → repo → **Releases** → ouvre le brouillon `vX.Y.Z`.
-2. Vérifie qu'il contient bien **les 3 fichiers**.
-3. Clique **« Publish release »**.
-   → À partir de là, le bouton MAJ des apps installées la détecte, télécharge et installe.
-
-> Pour tout automatiser (publier directement sans brouillon) : dans `package.json` → `build.publish`, ajoute `"releaseType": "release"`. Moins sûr (pas de vérif avant diffusion).
-
----
-
-## En cas de doublon / brouillon cassé
-Supprime les brouillons foireux puis republie **une seule fois** :
 ```bash
-gh release list --repo elite-marketing-e/Bible-Song
-gh release delete vX.Y.Z --repo elite-marketing-e/Bible-Song --yes   # supprime le brouillon
-npm run publish                                                       # recrée proprement
+git add -A
+```
+```bash
+git commit -m "vX.Y.Z"
+```
+```bash
+git push origin main
+```
+La version publiée = celle de `package.json`. Elle doit être **supérieure** à celle installée chez les users.
+
+**2. Construire l'installeur :**
+```bash
+npm run dist
 ```
 
+**3. Publier le release :**
+```bash
+npm run release:gh
+```
+Le script :
+- vérifie que `dist/` contient les **3 fichiers** et que `latest.yml` correspond à la version ;
+- crée le release en **brouillon** (invisible pour les MAJ tant qu'il n'est pas complet) ;
+- envoie l'installeur (~150 Mo) avec **3 essais** en cas de coupure réseau ;
+- **publie** le release en « Latest » et fait un **contrôle final**.
+
+S'il s'arrête (coupure Internet…), **relance simplement `npm run release:gh`** : il reprend le brouillon là où il en était.
+Notes de version personnalisées (optionnel) : `npm run release:gh -- "Correctifs écrans et presets"`.
+
 ---
+
+## Méthode manuelle (site GitHub, sans terminal)
+1. github.com/elite-marketing-e/Bible-Song → **Releases** → **Draft a new release**.
+2. **Choose a tag** : tape `vX.Y.Z` → *Create new tag* ; **Target** : `main`.
+3. **Release title** : `X.Y.Z`.
+4. Glisse les **3 fichiers** depuis `dist/` : `EEAM-BibleSong-Pro-Setup-X.Y.Z.exe`, `…exe.blockmap`, `latest.yml`. **Attends la fin de l'envoi** des 3.
+5. Coche **Set as the latest release**, puis **Publish release**.
+
+---
+
+## À ne pas faire
+- ❌ `npm run publish` / `npm run release:publish` : electron-builder crée des **brouillons en double** aux fichiers éclatés (MAJ cassée).
+- ❌ Publier avant que les **3 fichiers** soient en ligne.
+- ❌ Ajouter un commentaire `# …` à la fin d'une commande dans le terminal Windows (ce n'est pas un commentaire : ça casse la commande).
 
 ## Notes
 - En **dev** (`npm start`), le bouton MAJ affiche « échec/idle » : normal, la MAJ ne marche que dans l'app **installée**.
-- Sans **certificat de signature Windows**, la MAJ fonctionne mais SmartScreen peut afficher un avertissement à l'installation.
-- Le dossier `saved configurations/` et `server/certs/` ne sont **pas** dans le dépôt (voir `.gitignore`) ; ils restent sur ta machine pour le build/usage local.
+- Sans **certificat de signature Windows**, SmartScreen peut afficher un avertissement à l'installation.
+- `saved configurations/` et `server/certs/` ne sont **pas** dans le dépôt (`.gitignore`).
