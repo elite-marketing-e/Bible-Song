@@ -1931,14 +1931,24 @@
       };
       modal.addEventListener('click', modal._backdropHandler);
       if (id === 'settingsModal') {
+        // Fenêtres posées PAR-DESSUS les Réglages (presets, confirmations, langue de Bible, cloud,
+        // autres modales…) : y cliquer n'est PAS un clic « à l'extérieur ». Avant, chaque clic dans
+        // la fenêtre Presets fermait les Réglages ; à la réouverture ils repartaient sur « Live »,
+        // et le preset capturait le Live au lieu de l'écran qu'on réglait.
+        const BSP_OVER_SETTINGS = '.bsp-fx-overlay, .bsp-fx-confirm, .bsp-blang, .bsp-cloud-pop, .modal-overlay:not(#settingsModal)';
+        const overlayAbove = () => Array.from(document.querySelectorAll(BSP_OVER_SETTINGS))
+          .some((el) => el.offsetParent !== null || getComputedStyle(el).position === 'fixed' && getComputedStyle(el).display !== 'none');
         modal._escHandler = modal._escHandler || function(e) {
-          if (e.key === 'Escape') closeModal('settingsModal');
+          if (e.key !== 'Escape') return;
+          if (overlayAbove()) return; // Échap ferme la fenêtre du dessus, pas les Réglages
+          closeModal('settingsModal');
         };
         modal._outsideClickHandler = modal._outsideClickHandler || function(e) {
           if (modal.style.display !== 'flex') return;
           const content = modal.querySelector('.modal-content');
           if (!content) return;
-          if (!(e.target instanceof Node)) return;
+          if (!(e.target instanceof Element)) return;
+          if (e.target.closest(BSP_OVER_SETTINGS)) return;
           if (!content.contains(e.target)) closeModal('settingsModal');
         };
         document.addEventListener('keydown', modal._escHandler);

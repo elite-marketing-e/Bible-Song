@@ -337,12 +337,23 @@
         overlay.className = 'bsp-fx-overlay';
         overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) bspCloseOutputPresetsModal(); });
         document.body.appendChild(overlay);
+        // Échap : ferme d'abord la confirmation ouverte, sinon la fenêtre Presets — jamais les
+        // Réglages en dessous (phase de capture + arrêt de la propagation).
+        bspFxEscHandler = (e) => {
+          if (e.key !== 'Escape') return;
+          e.stopPropagation(); e.preventDefault();
+          const c = document.querySelector('.bsp-fx-confirm');
+          if (c) c.remove(); else bspCloseOutputPresetsModal();
+        };
+        document.addEventListener('keydown', bspFxEscHandler, true);
       }
       bspRenderOutputPresetsModal();
     }
+    let bspFxEscHandler = null;
     function bspCloseOutputPresetsModal() {
       const overlay = document.getElementById('bsp-fx-overlay');
       if (overlay) overlay.remove();
+      if (bspFxEscHandler) { document.removeEventListener('keydown', bspFxEscHandler, true); bspFxEscHandler = null; }
     }
 
     function bspRenderOutputPresetsModal() {
