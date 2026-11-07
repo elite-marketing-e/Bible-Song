@@ -16,7 +16,8 @@
     "bump:minor": "npm version minor --no-git-tag-version",
     "release": "npm version patch --no-git-tag-version && electron-builder",
     "release:publish": "npm version patch --no-git-tag-version && electron-builder --publish always",
-    "publish": "electron-builder --publish always"
+    "publish": "electron-builder --publish always",
+    "release:gh": "node scripts/publish-release.js"
   },
   "build": {
     "appId": "org.eeam.biblesongpro.app",
