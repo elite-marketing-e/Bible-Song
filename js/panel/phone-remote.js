@@ -14,9 +14,24 @@
       return (div.textContent || '').replace(/\s+/g, ' ').trim();
     }
 
+    // Lignes-par-page PROPRES au type (verset/chant), lues depuis le profil du type, et NON
+    // le global `linesPerPage` (qui suit l'onglet affiché sur le PC). Sans ça, le téléphone
+    // pouvait paginer un chant avec la valeur de l'onglet Bible → l'index tapé ne tombait pas
+    // sur la même page que la projection → « ce n'est pas la ligne correspondante qui passe ».
+    function bspPhoneKindLinesPerPage(isBible) {
+      try {
+        const prof = (typeof ensureProjectionSettingsProfiles === 'function')
+          ? ensureProjectionSettingsProfiles()[isBible ? 'bible' : 'songs'] : null;
+        const n = prof ? Number(prof.linesPerPage) : NaN;
+        return (Number.isFinite(n) && n >= 1) ? n : null;
+      } catch (_) { return null; }
+    }
+
     function bspPhoneSlidesFor(item, isBible) {
       try {
-        return getPagesFromItem(item, isBible).map(p => bspPhoneStripHtml(p.raw || p.text || ''));
+        // Même pagination que la projection : on fixe sur les lignes-par-page du TYPE.
+        const lc = bspPhoneKindLinesPerPage(isBible);
+        return getPagesFromItem(item, isBible, lc).map(p => bspPhoneStripHtml(p.raw || p.text || ''));
       } catch (_) {
         return [];
       }
@@ -224,7 +239,23 @@
           lineCursor = pageIndex;
           // Picking a slide from the phone behaves like clicking it in the workspace:
           // it never yanks the setlist selection forward.
-          projectLive(true, { advanceSetlist: false });
+          // On FIXE la pagination live sur les lignes-par-page du TYPE projeté — EXACTEMENT ce
+          // qu'a utilisé le téléphone pour construire ses slides (bspPhoneSlidesFor) — pour que
+          // la page tapée = la page projetée, quel que soit l'onglet affiché sur le PC. Le
+          // global `linesPerPage` est restauré après (l'UI du panneau ne bouge pas) ; projectLive
+          // a posé liveLinesPerPage = lc, qui pilote ensuite buildLivePayload.
+          const projIsBible = (kind === 'bible') ||
+            (kind === 'setlist' && !!(schedule[Number(payload.i)] &&
+              (schedule[Number(payload.i)]._metaKind === 'bible_verse' || schedule[Number(payload.i)].version)));
+          const bspLc = bspPhoneKindLinesPerPage(projIsBible);
+          if (bspLc != null) {
+            const savedLpp = linesPerPage;
+            linesPerPage = bspLc;
+            try { projectLive(true, { advanceSetlist: false }); }
+            finally { linesPerPage = savedLpp; }
+          } else {
+            projectLive(true, { advanceSetlist: false });
+          }
           if (typeof updateButtonView === 'function') updateButtonView({ preserveScroll: true });
           return;
         }
