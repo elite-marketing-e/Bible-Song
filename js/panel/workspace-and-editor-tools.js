@@ -485,6 +485,15 @@
       if (!FOCUSED_WORKSPACE_TABS.includes(tab)) return false;
       const controls = ensureFocusedWorkspaceControlsState();
       const next = normalizeFocusedWorkspaceControlState(controls[tab], tab);
+      // Le TYPE de fond (couleur / image / vidéo) a UNE seule source de vérité : le profil de
+      // projection de l'onglet (celui des Réglages, que les écrans reçoivent). Ce stock
+      // « focused » en gardait une copie qui n'était mise à jour que depuis la barre du bas :
+      // changer le type dans les Réglages puis changer d'onglet réimposait l'ANCIENNE valeur
+      // et l'écrivait même dans le profil (barre du bas « Image », Réglages « Vidéo »).
+      try {
+        const prof = (typeof ensureProjectionSettingsProfiles === 'function') ? ensureProjectionSettingsProfiles()[tab] : null;
+        if (prof && ['color', 'image', 'video'].indexOf(prof.bgType) !== -1) next.bgType = prof.bgType;
+      } catch (_) {}
       controls[tab] = next;
 
       linesPerPage = next.linesPerPage;
