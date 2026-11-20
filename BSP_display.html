@@ -48,6 +48,16 @@
       opacity: 0 !important;
       transition: opacity .32s ease !important;
     }
+    /* « Effacer le texte » (bouton du panneau) : masque UNIQUEMENT le texte (chant/verset +
+       référence) et garde l'arrière-plan (image/vidéo/couleur, bande LT, arête SD). Piloté par
+       le drapeau `hideText` du payload, donc identique sur le Live et chaque écran. */
+    body.bsp-hide-text #text-container,
+    body.bsp-hide-text #custom-lt-ref-box,
+    body.bsp-hide-text #custom-lt-version-bar,
+    body.bsp-hide-text #custom-lt-main-bar {
+      opacity: 0 !important;
+      transition: opacity .32s ease !important;
+    }
   </style>
   <div id="display-container" class="mode-full">
     <div id="text-container" class="hardware-accelerated"></div>
@@ -1746,6 +1756,9 @@
     // Handle update with proper sequencing
     function handleUpdate(d) {
       cancelPendingClear();
+      // « Effacer le texte » : simple bascule de classe (fondu CSS), AVANT l'anti-doublon et
+      // sans relancer de rendu — le fond reste en place, le texte s'efface/réapparaît.
+      document.body.classList.toggle('bsp-hide-text', !!(d && d.hideText));
       // ANTI-SCINTILLEMENT : si le contenu visuel est STRICTEMENT identique à ce qui est déjà
       // affiché, on ne relance NI le rendu NI la transition/fondu. Le panneau peut renvoyer la
       // même diapo en rafale (battement, boucle de re-push, double canal bc+idb) — sans ce
@@ -1756,7 +1769,7 @@
         Object.keys(d || {}).forEach((k) => {
           if (['type','seq','ts','proto','sender','designs','sceneLayers',
                'displayViewportWidth','displayViewportHeight','transitionType',
-               'transitionDuration','fade','__blankOutput'].indexOf(k) === -1) V[k] = d[k];
+               'transitionDuration','fade','__blankOutput','hideText'].indexOf(k) === -1) V[k] = d[k];
         });
         const sig = JSON.stringify(V);
         if (sig === bspLastAppliedSig) { currentState = { ...currentState, ...d }; return; }
@@ -3276,6 +3289,7 @@
       const fade = opts.fade !== false;
       const durationSec = clamp(Number(opts.duration ?? currentState.transitionDuration ?? 0.3), 0, 10);
       bspLastAppliedSig = null; // après un effacement, ré-afficher le même contenu doit redessiner
+      document.body.classList.remove('bsp-hide-text');
       cancelPendingClear();
       // Écran : la fenêtre disparaît en fondu avec le contenu (sauf si un sous-titre reste affiché).
       if (!bspSubActive) bspSetWindowVisible(false, fade ? Math.round(durationSec * 1000) : 0);

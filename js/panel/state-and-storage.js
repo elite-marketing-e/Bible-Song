@@ -960,6 +960,13 @@
       // l'antenne). On préserve donc le mode déjà persisté pour CE tab — la capture ne le bouge
       // jamais.
       if (prevProfile && prevProfile.activeRatio != null) snap.activeRatio = prevProfile.activeRatio;
+      // Même fuite pour les LIGNES/PAGE : la globale `linesPerPage` reflète le dernier choix
+      // 1/2/3 lignes quel que soit le kind. L'onglet des Réglages étant « Bible » par défaut,
+      // changer les lignes d'un CHANT à l'antenne écrivait la valeur dans le profil BIBLE et
+      // laissait le profil CHANTS inchangé → les écrans externes (qui héritent du profil du
+      // kind) gardaient l'ancien nombre de lignes pendant que le Live changeait. setLines écrit
+      // désormais profiles[kind].linesPerPage en direct ; la capture ne le bouge plus.
+      if (prevProfile && prevProfile.linesPerPage != null) snap.linesPerPage = prevProfile.linesPerPage;
       profiles[tab] = snap;
       return profiles[tab];
     }

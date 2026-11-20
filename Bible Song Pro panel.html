@@ -640,6 +640,7 @@
       <div class="live-controls">
         <div class="nav-row has-screens">
           <button class="btn" style="background:#444;padding:0 6px" onclick="clearOutput({ withSubtitles: true })" title="1er clic : efface le verset/chant — 2e clic : masque aussi les sous-titres"><span data-i18n="common_clear">Clear</span></button>
+          <button class="btn" id="bsp-hide-text-btn" type="button" style="background:#444;padding:0 6px" onclick="bspToggleTextOnly()" aria-pressed="false" title="Efface uniquement le texte (chant/verset) et garde l'arrière-plan — recliquer pour le réafficher" data-i18n-title="clear_text_title"><span data-i18n="common_clear_text">Text</span></button>
           <button class="btn btn-live" id="btn-project-live" style="white-space:nowrap;padding:0 14px;min-width:126px" onclick="projectLive(true)"><span data-i18n="common_project_live">Project Live</span></button>
           <div id="bsp-screens" class="bsp-screens">
             <!-- title/aria-label carry the name once the label is hidden on a narrow dock -->

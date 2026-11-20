@@ -341,6 +341,13 @@ function registerIpc() {
 }
 
 // ── Cycle de vie ────────────────────────────────────────────────────
+// Ne jamais « endormir » une fenêtre recouverte : sur un PC à un seul écran, la projection plein
+// écran recouvre le panneau ; Chromium suspendait alors son rendu (rAF/minuteurs) et les envois
+// vers les écrans restaient bloqués (le panneau montrait une ligne, l'écran une autre).
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+
 // Une seule instance : un second lancement refocalise le panneau existant.
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {

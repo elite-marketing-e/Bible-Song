@@ -1028,6 +1028,7 @@
     }
 
     let pendingVerseProjectFrame = 0;
+    let pendingVerseProjectTimer = 0;
     function applyBibleActiveButtonStyle(btn, versionIndex, active) {
       if (!btn) return;
       if (active && Number.isFinite(versionIndex) && versionIndex >= 0) {
@@ -1109,7 +1110,14 @@
 
         btn.onclick = () => {
           if (annotateMode) return;
-          if (editorMode === 'btn' && isCurrentlyLive) {
+          // « Re-cliquer la ligne à l'antenne = effacer » : évalué AU MOMENT DU CLIC. La valeur
+          // calculée au dessin des boutons devenait fausse après d'autres clics (pas de re-dessin)
+          // → on effaçait au lieu de projeter la ligne choisie.
+          const liveNow = isLive && livePointer &&
+            ((livePointer.kind === 'bible' && isBible && livePointer.version === currentItem.version && livePointer.index === currentIndex) ||
+             (livePointer.kind === 'songs' && !isBible && livePointer.index === currentIndex)) &&
+            liveLineCursor === idx;
+          if (editorMode === 'btn' && liveNow) {
             clearOutput({ fade: true });
             return;
           }
@@ -1123,11 +1131,26 @@
             cancelAnimationFrame(pendingVerseProjectFrame);
             pendingVerseProjectFrame = 0;
           }
-          pendingVerseProjectFrame = requestAnimationFrame(() => {
+          if (pendingVerseProjectTimer) {
+            clearTimeout(pendingVerseProjectTimer);
+            pendingVerseProjectTimer = 0;
+          }
+          // Projection au premier des deux : image suivante OU minuteur court. Avec un rAF seul,
+          // quand la projection plein écran RECOUVRE le panneau (un seul écran), Windows suspend
+          // les rAF : le panneau montrait la nouvelle ligne mais l'écran gardait l'ancienne.
+          let fired = false;
+          const go = () => {
+            if (fired) return;
+            fired = true;
+            if (pendingVerseProjectFrame) cancelAnimationFrame(pendingVerseProjectFrame);
+            if (pendingVerseProjectTimer) clearTimeout(pendingVerseProjectTimer);
             pendingVerseProjectFrame = 0;
+            pendingVerseProjectTimer = 0;
             // Selecting a slide stays on the current setlist entry.
             projectLive(true, { advanceSetlist: false });
-          });
+          };
+          pendingVerseProjectFrame = requestAnimationFrame(go);
+          pendingVerseProjectTimer = setTimeout(go, 60);
         };
 
         row.appendChild(btn);
@@ -1282,6 +1305,8 @@
     function projectLive(trigger = false, opts = {}) {
       if (trigger) isLive = true;
       if (!isLive) return;
+      // Projeter une ligne réaffiche le texte si « Effacer le texte » l'avait masqué.
+      if (typeof bspSetTextHidden === 'function') bspSetTextHidden(false, { push: false });
       applyProgramDisplaySource('lyrics');
       if (!currentItem) return;
       if (currentItem._metaKind === 'section') return; // les sections ne se projettent pas

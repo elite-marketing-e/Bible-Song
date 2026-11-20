@@ -1637,11 +1637,45 @@
       setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
+    // ===== « EFFACER LE TEXTE » (garde l'arrière-plan) =====
+    // Bascule : 1er clic masque le chant/verset sur le Live et tous les écrans en laissant le fond
+    // (image, vidéo, couleur), 2e clic le réaffiche. Projeter une nouvelle ligne le réaffiche aussi.
+    let bspTextHidden = false;
+    function bspSyncHideTextBtn() {
+      const b = document.getElementById('bsp-hide-text-btn');
+      if (!b) return;
+      b.classList.toggle('is-on', bspTextHidden);
+      b.setAttribute('aria-pressed', bspTextHidden ? 'true' : 'false');
+      b.style.background = bspTextHidden ? '#b45309' : '#444';
+    }
+    function bspSetTextHidden(on, opts = {}) {
+      const next = !!on;
+      if (next === bspTextHidden) return;
+      bspTextHidden = next;
+      bspSyncHideTextBtn();
+      if (opts.push !== false && isLive && livePointer) pushLiveUpdate();
+    }
+    function bspToggleTextOnly() {
+      if (!isLive || !livePointer) {
+        if (typeof showToast === 'function') showToast(t('clear_text_nothing_live'));
+        return;
+      }
+      bspSetTextHidden(!bspTextHidden);
+    }
+    window.bspToggleTextOnly = bspToggleTextOnly;
+
     function scheduleLiveUpdate() {
       if (isRestoringBackup) return;
       if (rafPending) return;
       rafPending = true;
-      requestAnimationFrame(() => {
+      // requestAnimationFrame seul ne suffit pas : quand la fenêtre du panneau est cachée ou
+      // RECOUVERTE (projection plein écran sur le même écran du PC), le navigateur suspend les
+      // rAF → l'envoi restait bloqué et l'écran gardait l'ancienne ligne pendant que le panneau
+      // en montrait une autre. On part donc sur le premier des deux : rAF ou un minuteur court.
+      let done = false;
+      const run = () => {
+        if (done) return;
+        done = true;
         rafPending = false;
         if (!isLive || !livePointer) return;
         if (pushLiveUpdate()) return;
@@ -1649,7 +1683,9 @@
         if (livePointer.kind === 'bible' && recoverLiveBiblePointerFromCurrentItem()) {
           pushLiveUpdate();
         }
-      });
+      };
+      requestAnimationFrame(run);
+      setTimeout(run, 80);
     }
 
     function postUpdate(payload) {
@@ -2284,6 +2320,8 @@
       }
       const payload = {
         text: outHtml,
+        // « Effacer le texte » : les écrans masquent le texte et gardent le fond (cf. bouton).
+        hideText: !!bspTextHidden,
         mode: effectiveLiveRatio,
         sdWidth: Math.max(15, Math.min(90, Number(sdWidth) || 50)),
         sdMargin: Math.max(0, Math.min(40, Number(sdMargin) || 0)),

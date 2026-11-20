@@ -14,6 +14,7 @@
         }
       }
       isLive = false;
+      if (typeof bspSetTextHidden === 'function') bspSetTextHidden(false, { push: false });
       liveKind = null;
       livePointer = null;
       liveLineCursor = 0;

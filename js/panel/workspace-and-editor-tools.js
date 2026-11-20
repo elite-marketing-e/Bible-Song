@@ -707,6 +707,34 @@
       }
     }
 
+    // Aides d'ancrage de ligne (chants) : on compte les lignes non vides des pages, ce qui est
+    // stable d'une pagination à l'autre (mêmes lignes, dans le même ordre, doublons compris).
+    function bspPageLineCount(p) {
+      return String((p && p.raw) || '').split('\n').filter((l) => l.trim()).length || 1;
+    }
+    function bspCountLinesBefore(pages, idx) {
+      let c = 0;
+      for (let i = 0; i < Math.min(idx, pages.length); i++) c += bspPageLineCount(pages[i]);
+      return c;
+    }
+    function bspPageIndexForLineOffset(pages, off) {
+      let c = 0;
+      for (let i = 0; i < pages.length; i++) {
+        const k = bspPageLineCount(pages[i]);
+        if (off < c + k) return i;
+        c += k;
+      }
+      return Math.max(0, pages.length - 1);
+    }
+    function bspLiveItemIs(item) {
+      if (!livePointer || !item) return false;
+      let live = null;
+      if (livePointer.source === 'schedule') live = schedule[livePointer.index];
+      else if (livePointer.kind === 'bible') live = (bibles[livePointer.version] || [])[livePointer.index];
+      else live = songs[livePointer.index];
+      return live === item;
+    }
+
     function setLines(n, opts = {}) {
       const maxLines = getMaxLinesForCurrentTab(sidebarTab);
       const targetLines = Math.max(1, Math.min(n, maxLines));
@@ -721,6 +749,13 @@
         const prevPage = prevPages[lineCursor];
         anchorVerse = (prevPage && prevPage.startVerse) ? String(prevPage.startVerse).trim() : getFirstVerseNumber(prevPage && prevPage.raw);
       }
+      // Chants : on retient la position RÉELLE (n° de ligne) de la page affichée, pour retomber
+      // sur la page qui la contient après le changement. Sans ça le curseur gardait son numéro de
+      // page : L3 en 1 ligne devenait « L5 L6 » en 2 lignes (contenu sauté, écran ≠ panneau).
+      let songLineOffset = null;
+      if (!isBible && currentItem && !getIsBibleItem(currentItem)) {
+        try { songLineOffset = bspCountLinesBefore(getPagesFromItem(currentItem, false), lineCursor); } catch (_) {}
+      }
       const fullFontInput = document.getElementById('font-size-val');
       if (n === 1) {
         restoreLongVerseFullFontOverride(true);
@@ -731,8 +766,29 @@
       }
       linesPerPage = n;
       const panelKind = getCurrentPanelContentKind();
+      // Le nombre de lignes appartient au KIND affiché (chant ou verset) : on l'écrit dans SON
+      // profil, que les écrans externes et le téléphone lisent. (La capture générale ne le fait
+      // plus — elle l'écrivait dans le profil de l'onglet des Réglages, souvent « Bible ».)
+      const editingScreenInSettings = (typeof bspSettingsOutputIsScreen === 'function') && bspSettingsOutputIsScreen();
+      if (!editingScreenInSettings && (panelKind === 'songs' || panelKind === 'bible')) {
+        try {
+          const pf = ensureProjectionSettingsProfiles();
+          if (pf[panelKind]) pf[panelKind].linesPerPage = n;
+        } catch (_) {}
+      }
       if (isLive && livePointer && panelKind && livePointer.kind === panelKind) {
         liveLinesPerPage = n;
+      }
+      if (songLineOffset != null) {
+        try {
+          lineCursor = bspPageIndexForLineOffset(getPagesFromItem(currentItem, false), songLineOffset);
+          // Le chant affiché EST celui à l'antenne (et sa pagination live vient de suivre) : la
+          // projection reste sur la même ligne au lieu de sauter.
+          if (isLive && livePointer && livePointer.kind !== 'bible' && liveLinesPerPage === linesPerPage &&
+              bspLiveItemIs(currentItem)) {
+            liveLineCursor = lineCursor;
+          }
+        } catch (_) {}
       }
       if (isBible && anchorVerse) {
         setBibleGroupAnchor(anchorVerse, currentItem);
