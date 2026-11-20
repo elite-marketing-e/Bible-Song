@@ -1,0 +1,34 @@
+/* Listes déroulantes lisibles en thème sombre.
+   Les <select> avaient color-scheme:normal et un texte presque blanc : Windows/Chromium dessine
+   alors la liste OUVERTE sur fond blanc → options « gris clair sur blanc », illisibles.
+   color-scheme:dark fait dessiner la liste native en sombre ; les options reçoivent en plus un
+   fond et une couleur explicites. Les thèmes clairs (data-theme-mode="light") gardent le clair. */
+select,
+.settings-select {
+  color-scheme: dark;
+}
+select option,
+select optgroup,
+.settings-select option {
+  background-color: #1b1f2a;
+  color: #edf2ff;
+}
+select option:checked,
+.settings-select option:checked {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+select option:disabled {
+  color: #7a8399;
+}
+
+html[data-theme-mode="light"] select,
+html[data-theme-mode="light"] .settings-select {
+  color-scheme: light;
+}
+html[data-theme-mode="light"] select option,
+html[data-theme-mode="light"] select optgroup,
+html[data-theme-mode="light"] .settings-select option {
+  background-color: #ffffff;
+  color: #1a1f2b;
+}

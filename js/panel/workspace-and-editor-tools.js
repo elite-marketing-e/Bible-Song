@@ -1044,11 +1044,12 @@
       const offBtn = document.getElementById('ref-bg-toggle-off');
       if (onBtn) onBtn.classList.toggle('active', refBgEnabled);
       if (offBtn) offBtn.classList.toggle('active', !refBgEnabled);
+      // L'ancienne ligne « Ref. background colour » reste TOUJOURS masquée : la boîte de référence
+      // (on/off, couleur, arrondi, bordure, souligné) vit dans la section dynamique
+      // « Ref. background » (bspRenderSettingsBgRef). L'afficher ici créait un 2e réglage de
+      // couleur pour la même chose — « arrière-plan de réf. et couleur de fond de réf. se confondent ».
       const row = document.getElementById('ref-bg-color-row');
-      const effectiveTarget = (typeof getEffectiveSettingsTargetTab === 'function')
-        ? getEffectiveSettingsTargetTab()
-        : 'bible';
-      if (row) row.style.display = (effectiveTarget === 'songs') ? 'none' : (refBgEnabled ? '' : 'none');
+      if (row) row.style.display = 'none';
       if (!opts.silent && typeof onAnyControlChange === 'function') onAnyControlChange();
     }
 
@@ -1946,7 +1947,12 @@
         if (typeof bspSettingsOutputIsScreen === 'function' && bspSettingsOutputIsScreen() && typeof handleSettingsOutputChange === 'function') handleSettingsOutputChange('');
         else if (typeof settingsTargetOutput !== 'undefined') settingsTargetOutput = '';
         if (typeof setSettingsTargetTab === 'function') {
-            setSettingsTargetTab('bible', { silent: true });
+            // Ouvrir sur l'onglet affiché dans le panneau (Chants / Bible / Setlist) : les Réglages
+            // montrent alors EXACTEMENT ce que la barre du bas vient de régler. Avant, on forçait
+            // « Bible » et on ne le rendait jamais → la barre du bas éditait ensuite le profil
+            // Bible même sur un chant (image choisie en bas ≠ fond des Réglages, non projetée).
+            const openTab = (sidebarTab === 'songs' || sidebarTab === 'bible' || sidebarTab === 'schedule') ? sidebarTab : 'bible';
+            setSettingsTargetTab(openTab, { silent: true });
         }
         if (typeof updateSettingsOutputSelect === 'function') updateSettingsOutputSelect();
         if (typeof bspRefreshAppVersion === 'function') bspRefreshAppVersion();
@@ -2029,6 +2035,11 @@
       if (id === 'settingsModal' && typeof bspSettingsOutputIsScreen === 'function' && bspSettingsOutputIsScreen() &&
           typeof handleSettingsOutputChange === 'function') {
         try { handleSettingsOutputChange(''); } catch (e) { console.warn('[BSP] retour Live à la fermeture', e); }
+      }
+      // Réglages fermés → la barre du bas reprend la main : elle édite le profil de l'onglet
+      // AFFICHÉ dans le panneau (« follow »), pas l'onglet resté ouvert dans les Réglages.
+      if (id === 'settingsModal' && typeof setSettingsTargetTab === 'function') {
+        try { setSettingsTargetTab('follow', { silent: true }); } catch (e) { console.warn('[BSP] retour follow', e); }
       }
       const modal = document.getElementById(id);
       if (modal) {

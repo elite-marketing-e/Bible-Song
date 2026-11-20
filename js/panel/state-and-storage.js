@@ -938,7 +938,10 @@
       SETTINGS_TARGET_TABS.forEach((tab) => {
         projectionSettingsProfilesByTab[tab] = normalizeProjectionSettingsSnapshot(source[tab], projectionSettingsProfilesByTab[tab]);
       });
-      settingsTargetTab = normalizeSettingsTargetTab(ui?.settingsTargetTab);
+      // Au chargement (boot / import de config) les Réglages sont FERMÉS → on suit toujours
+      // l'onglet du panneau. Une valeur figée (« bible », persistée par les anciennes versions)
+      // faisait éditer le profil Bible depuis la barre du bas même en travaillant un chant.
+      settingsTargetTab = 'follow';
       return projectionSettingsProfilesByTab;
     }
 
