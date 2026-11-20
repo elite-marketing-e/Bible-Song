@@ -253,7 +253,13 @@
         bspDesignProfileOverride = merged;
         applyProjectionRuntimeSnapshot(merged);
         if (merged.activeRatio) liveRatio = merged.activeRatio;
-        if (merged.linesPerPage != null) liveLinesPerPage = Math.max(1, Number(merged.linesPerPage) || 1);
+        // Lignes/page : TOUJOURS celles du Live. Le curseur de ligne (lineCursor) est commun à
+        // toutes les sorties ; une pagination différente par écran faisait projeter une AUTRE
+        // ligne sur l'écran que sur le Live (« la ligne projetée n'est pas celle qui s'affiche »).
+        // applyProjectionRuntimeSnapshot a pu remettre linesPerPage à la valeur de l'écran : on
+        // reprend celle du Live pour les deux.
+        liveLinesPerPage = savedLive.liveLinesPerPage;
+        linesPerPage = savedLive.liveLinesPerPage || linesPerPage;
         liveTextTransformState = {
           full: merged.fullTextTransform || savedLive.liveTextTransformState?.full || 'uppercase',
           lt: merged.ltTextTransform || savedLive.liveTextTransformState?.lt || 'uppercase'

@@ -491,8 +491,15 @@
       // changer le type dans les Réglages puis changer d'onglet réimposait l'ANCIENNE valeur
       // et l'écrivait même dans le profil (barre du bas « Image », Réglages « Vidéo »).
       try {
-        const prof = (typeof ensureProjectionSettingsProfiles === 'function') ? ensureProjectionSettingsProfiles()[tab] : null;
-        if (prof && ['color', 'image', 'video'].indexOf(prof.bgType) !== -1) next.bgType = prof.bgType;
+        let srcType = null;
+        if ((tab === 'bible' || tab === 'songs') && typeof bspSettingsEffectiveDesignKey === 'function') {
+          // Valeur de la CIBLE : l'écran sélectionné s'il y en a un, sinon le Live (profil de base).
+          srcType = bspSettingsEffectiveDesignKey('bgType', tab);
+        } else {
+          const prof = (typeof ensureProjectionSettingsProfiles === 'function') ? ensureProjectionSettingsProfiles()[tab] : null;
+          srcType = prof ? prof.bgType : null;
+        }
+        if (['color', 'image', 'video'].indexOf(srcType) !== -1) next.bgType = srcType;
       } catch (_) {}
       controls[tab] = next;
 
@@ -778,8 +785,10 @@
       // Le nombre de lignes appartient au KIND affiché (chant ou verset) : on l'écrit dans SON
       // profil, que les écrans externes et le téléphone lisent. (La capture générale ne le fait
       // plus — elle l'écrivait dans le profil de l'onglet des Réglages, souvent « Bible ».)
-      const editingScreenInSettings = (typeof bspSettingsOutputIsScreen === 'function') && bspSettingsOutputIsScreen();
-      if (!editingScreenInSettings && (panelKind === 'songs' || panelKind === 'bible')) {
+      // Toujours le profil de BASE, même quand un écran est la cible d'édition : le nombre de
+      // lignes est commun à TOUTES les sorties (un seul curseur de ligne). Le mettre par écran
+      // donnait « L3 L4 » sur le Live et « L2 » sur l'écran.
+      if (panelKind === 'songs' || panelKind === 'bible') {
         try {
           const pf = ensureProjectionSettingsProfiles();
           if (pf[panelKind]) pf[panelKind].linesPerPage = n;
@@ -1953,8 +1962,11 @@
         // then populate the output selector with the current screens.
         // Revenir PROPREMENT sur Live : si une ancienne cible « écran » traîne, la simple remise à ''
         // faisait enregistrer le formulaire (qui montre encore l'écran) comme design du LIVE.
-        if (typeof bspSettingsOutputIsScreen === 'function' && bspSettingsOutputIsScreen() && typeof handleSettingsOutputChange === 'function') handleSettingsOutputChange('');
-        else if (typeof settingsTargetOutput !== 'undefined') settingsTargetOutput = '';
+        // Si une puce d'écran est sélectionnée, les Réglages s'ouvrent sur CET écran (ce que la
+        // barre du bas édite déjà) ; sinon sur le Live.
+        const selScreen = (typeof bspFooterTargetScreenId === 'function') ? bspFooterTargetScreenId() : '';
+        if (typeof handleSettingsOutputChange === 'function' && (settingsTargetOutput || '') !== selScreen) handleSettingsOutputChange(selScreen);
+        else if (typeof settingsTargetOutput !== 'undefined' && !selScreen) settingsTargetOutput = '';
         if (typeof setSettingsTargetTab === 'function') {
             // Ouvrir sur l'onglet affiché dans le panneau (Chants / Bible / Setlist) : les Réglages
             // montrent alors EXACTEMENT ce que la barre du bas vient de régler. Avant, on forçait
@@ -2041,9 +2053,13 @@
       // Fermer les Réglages alors qu'un ÉCRAN est édité : enregistrer l'écran puis revenir sur Live
       // (formulaire + état d'exécution). Sinon l'app restait « sur l'écran » : les contrôles du
       // panneau éditaient l'écran, et la réouverture recopiait le design de l'écran dans le Live.
-      if (id === 'settingsModal' && typeof bspSettingsOutputIsScreen === 'function' && bspSettingsOutputIsScreen() &&
-          typeof handleSettingsOutputChange === 'function') {
-        try { handleSettingsOutputChange(''); } catch (e) { console.warn('[BSP] retour Live à la fermeture', e); }
+      // Exception : si une puce d'écran est sélectionnée, on revient sur CET écran (la barre du
+      // bas l'édite), pas sur le Live.
+      if (id === 'settingsModal' && typeof handleSettingsOutputChange === 'function') {
+        const selScreen = (typeof bspFooterTargetScreenId === 'function') ? bspFooterTargetScreenId() : '';
+        if ((settingsTargetOutput || '') !== selScreen) {
+          try { handleSettingsOutputChange(selScreen); } catch (e) { console.warn('[BSP] retour cible à la fermeture', e); }
+        }
       }
       // Réglages fermés → la barre du bas reprend la main : elle édite le profil de l'onglet
       // AFFICHÉ dans le panneau (« follow »), pas l'onglet resté ouvert dans les Réglages.

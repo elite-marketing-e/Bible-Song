@@ -732,7 +732,7 @@
             <button class="btn" id="main-get-lyrics-btn" type="button" onclick="openModal('autoLyricsModal')" data-i18n="auto_lyrics_get_lyrics" style="display:none;width:100%;padding:6px 10px;font-size:10px;line-height:1.2;background:var(--bg-dark)">Get-Lyrics</button>
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:100px">
-            <span style="font-size:11px;color:var(--text-secondary)" data-i18n="settings_background">Background</span>
+            <span style="font-size:11px;color:var(--text-secondary);display:flex;gap:4px;align-items:baseline;max-width:100%"><span data-i18n="settings_background">Background</span><span id="bsp-footer-bg-target" style="font-size:9px;color:var(--accent);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span></span>
             <input type="checkbox" id="bg-toggle" onchange="onAnyControlChange()" checked style="display:none">
             <div class="segmented-picker" id="bg-mode-picker" style="display:grid;grid-template-columns:1fr 1fr auto;gap:2px;width:100%;min-width:0;align-items:stretch">
               <button class="seg-btn active" id="bg-mode-solid" onclick="setBgModeFromPicker('solid')" title="Solid Background" style="grid-column:1;grid-row:1">BG</button>

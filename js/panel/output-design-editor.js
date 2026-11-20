@@ -295,7 +295,47 @@
       if (typeof bspPreviewUpdateTarget === 'function' && typeof bspPreviewIsOpen === 'function' && bspPreviewIsOpen()) bspPreviewUpdateTarget();
       if (!bspDesignTargetId) bspCloseDesignModal();
       else if (bspIsDesignModalOpen()) bspRenderScreenDesignPanel();
+      // La barre du bas (fond, couleur, image/vidéo…) édite l'écran sélectionné ; sans
+      // sélection, le Live. Réglages ouverts : leur propre sélecteur « Settings for » décide.
+      if (!bspSettingsModalIsOpen()) bspSyncFooterTargetFromSelection();
+      bspRenderFooterTargetLabel();
     };
+
+    // Écran ciblé par la barre du bas : la puce sélectionnée si c'est un écran, sinon '' (Live).
+    function bspFooterTargetScreenId() {
+      const id = bspDesignTargetId;
+      return (id && id !== BSP_DEFAULT_OUTPUT_ID && typeof bspScreensAdded !== 'undefined' &&
+        Array.isArray(bspScreensAdded) && bspScreensAdded.some((s) => s && s.id === id)) ? id : '';
+    }
+    window.bspFooterTargetScreenId = bspFooterTargetScreenId;
+
+    function bspSettingsModalIsOpen() {
+      const m = document.getElementById('settingsModal');
+      return !!(m && getComputedStyle(m).display !== 'none');
+    }
+
+    // Aligne la cible d'édition sur la sélection. On réutilise le routage par sortie des
+    // Réglages (handleSettingsOutputChange) : il enregistre la cible précédente, charge le
+    // design de l'écran dans les contrôles, et pushLiveUpdate protège le Live pendant ce temps.
+    function bspSyncFooterTargetFromSelection() {
+      const target = bspFooterTargetScreenId();
+      if (typeof handleSettingsOutputChange !== 'function' || typeof settingsTargetOutput === 'undefined') return;
+      if ((settingsTargetOutput || '') !== target) {
+        try { handleSettingsOutputChange(target); } catch (e) { console.warn('[BSP] cible barre du bas', e); }
+      }
+      if (typeof updateBgTypePicker === 'function') updateBgTypePicker();
+      if (typeof updateBgModePicker === 'function') updateBgModePicker();
+    }
+    window.bspSyncFooterTargetFromSelection = bspSyncFooterTargetFromSelection;
+
+    // Petit libellé « · Écran 1 » à côté de « Arrière-plan » : on voit QUI on règle.
+    function bspRenderFooterTargetLabel() {
+      const el = document.getElementById('bsp-footer-bg-target');
+      if (!el) return;
+      const id = bspFooterTargetScreenId();
+      el.textContent = id ? ('· ' + bspDesignTargetLabel(id)) : '';
+      el.title = id ? bspDesignTargetLabel(id) : '';
+    }
 
     // Freeze acts on the output currently selected in the Screens bar.
     function bspSyncFreezeButton() {
