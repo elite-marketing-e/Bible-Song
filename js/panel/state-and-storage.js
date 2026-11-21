@@ -810,7 +810,13 @@
     }
 
     function getEffectiveSettingsTargetTab(target = settingsTargetTab) {
-      const normalized = normalizeSettingsTargetTab(target);
+      // Réglages FERMÉS → on suit toujours l'onglet du panneau, quelle que soit la valeur
+      // restée en mémoire : la barre du bas (fond, image, couleur…) doit éditer le type
+      // AFFICHÉ (chant/verset), sinon un fond choisi pendant un chant partait côté Bible et
+      // ne s'affichait nulle part.
+      const modal = (typeof document !== 'undefined') ? document.getElementById('settingsModal') : null;
+      const settingsOpen = !!(modal && modal.style.display && modal.style.display !== 'none');
+      const normalized = settingsOpen ? normalizeSettingsTargetTab(target) : 'follow';
       return normalized === 'follow' ? (sidebarTab || 'bible') : normalized;
     }
 

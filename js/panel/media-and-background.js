@@ -85,11 +85,24 @@
       }
     }
 
-    function setBgModeFromPicker(mode) {
+    // Fond ALLUMÉ (utilisé quand on choisit BG/GB/Image/Vidéo : OFF coupe tout, donc choisir un
+    // fond depuis OFF le rallume — sinon l'image choisie ne s'affichait nulle part).
+    function bspEnsureBgOn() {
       const bgToggle = document.getElementById('bg-toggle');
       if (bgToggle && !bgToggle.checked) {
         bgToggle.checked = true;
         if (sidebarTab === 'songs' && activeRatio === '16-9') songBgUserOn = true;
+      }
+    }
+
+    function setBgModeFromPicker(mode) {
+      bspEnsureBgOn();
+      // BG = couleur unie, GB = dégradé : ce sont des fonds COULEUR. Les choisir passe donc le
+      // type en « Couleur » (avant, BG/GB n'avaient aucun effet visible avec Image/Vidéo).
+      const sel = document.getElementById('bg-type');
+      if (sel && sel.value !== 'color') {
+        sel.value = 'color';
+        if (typeof handleBgTypeChange === 'function') handleBgTypeChange();
       }
       setBgMode(mode);
       updateBgModePicker();
@@ -113,8 +126,10 @@
       const solidBtn = document.getElementById('bg-mode-solid');
       const gradBtn = document.getElementById('bg-mode-gradient');
       const offBtn = document.getElementById('bg-off-btn');
-      if (solidBtn) solidBtn.classList.toggle('active', isOn && bgMode === 'solid');
-      if (gradBtn) gradBtn.classList.toggle('active', isOn && bgMode === 'gradient');
+      // BG/GB ne concernent que le type « Couleur » : éteints visuellement avec Image/Vidéo.
+      const isColorType = (document.getElementById('bg-type')?.value || 'color') === 'color';
+      if (solidBtn) solidBtn.classList.toggle('active', isOn && isColorType && bgMode === 'solid');
+      if (gradBtn) gradBtn.classList.toggle('active', isOn && isColorType && bgMode === 'gradient');
       if (offBtn) {
         offBtn.classList.toggle('active', !isOn);
         offBtn.textContent = isOn ? 'OFF' : 'OFF ✓';
@@ -150,6 +165,8 @@
     function setBgTypePicker(type, opts = {}) {
       const sel = document.getElementById('bg-type');
       if (sel) {
+        // Choisir un type de fond le rend visible : depuis OFF, on rallume le fond.
+        bspEnsureBgOn();
         sel.value = type;
         handleBgTypeChange();
         onAnyControlChange();
@@ -166,9 +183,12 @@
 
     function updateBgTypePicker() {
       const val = document.getElementById('bg-type').value;
-      document.getElementById('bgtype-color').classList.toggle('active', val === 'color');
-      document.getElementById('bgtype-image').classList.toggle('active', val === 'image');
-      document.getElementById('bgtype-video').classList.toggle('active', val === 'video');
+      // Fond OFF : aucun type n'est « actif » à l'écran (rien ne s'affiche).
+      const on = !!document.getElementById('bg-toggle')?.checked;
+      document.getElementById('bgtype-color').classList.toggle('active', on && val === 'color');
+      document.getElementById('bgtype-image').classList.toggle('active', on && val === 'image');
+      document.getElementById('bgtype-video').classList.toggle('active', on && val === 'video');
+      if (typeof updateBgModePicker === 'function') updateBgModePicker();
     }
     
     function handleBgImageSourceChange() {

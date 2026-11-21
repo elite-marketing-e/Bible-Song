@@ -157,7 +157,10 @@
     // getProjectionSettingsSnapshotForTab() returns it instead of the tab profile, which
     // is what makes one output render under a different design from the next.
     let bspDesignProfileOverride = null;
-      let settingsTargetTab = 'bible';
+      // « follow » = l'onglet des Réglages suit celui du panneau tant que les Réglages sont
+      // fermés (la barre du bas édite ce qui est affiché). 'bible' figé faisait écrire le fond
+      // choisi en bas côté BIBLE pendant qu'un chant était projeté.
+      let settingsTargetTab = 'follow';
     // Which OUTPUT the Settings modal is editing: '' = Live (the base design, current
     // behaviour); a screen id = that output's per-kind override. Routing is additive — when
     // '' everything behaves exactly as before, so the live/base flow is untouched.
