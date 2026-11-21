@@ -1340,6 +1340,9 @@
           source: isScheduleItem ? 'schedule' : 'songs'
         };
       }
+      // Onglet SETLIST : les contrôles doivent porter le design du type maintenant à l'antenne
+      // (chant ↔ verset) AVANT de capturer le fond ci-dessous.
+      if (typeof bspSyncSetlistDesignKind === 'function') bspSyncSetlistDesignKind();
       liveLineCursor = lineCursor;
       liveLinesPerPage = linesPerPage;
       liveBackgroundState = captureBackgroundStateFromUi();

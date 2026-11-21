@@ -86,7 +86,15 @@
       if (typeof updateWorkspaceStateLabels === 'function') updateWorkspaceStateLabels(tab);
       scheduleSidebarQuickActionsRender({ immediate: sidebarQuickActionsOpen, forceRender: sidebarQuickActionsOpen });
       if (normalizeSettingsTargetTab(settingsTargetTab) === 'follow') {
-        applyProjectionSettingsProfileForTab(tab, { triggerChange: false });
+        // SETLIST : charger le profil du type à l'antenne (chant/verset), pas un profil
+        // « setlist » que la projection n'utilise pas.
+        if (typeof bspSetlistDomKind !== 'undefined') bspSetlistDomKind = null;
+        if (tab === 'schedule' && typeof bspSetlistLiveKind === 'function') {
+          bspSetlistDomKind = bspSetlistLiveKind();
+          applyProjectionSettingsProfileForTab(bspSetlistDomKind, { triggerChange: false });
+        } else {
+          applyProjectionSettingsProfileForTab(tab, { triggerChange: false });
+        }
         updateSettingsTargetControl();
       }
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));

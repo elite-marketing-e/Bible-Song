@@ -490,16 +490,26 @@
       // « focused » en gardait une copie qui n'était mise à jour que depuis la barre du bas :
       // changer le type dans les Réglages puis changer d'onglet réimposait l'ANCIENNE valeur
       // et l'écrivait même dans le profil (barre du bas « Image », Réglages « Vidéo »).
+      // Même règle pour BG/GB (bgMode) et ON/OFF (bgToggle) : la copie « focused » était périmée
+      // et réimposait un ancien mode → après une image, revenir à BG/GB semblait sans effet.
+      // Sur l'onglet SETLIST, la source est le profil du type à l'antenne (chant/verset).
       try {
-        let srcType = null;
-        if ((tab === 'bible' || tab === 'songs') && typeof bspSettingsEffectiveDesignKey === 'function') {
+        const kindTab = (tab === 'schedule' && typeof bspSetlistLiveKind === 'function')
+          ? ((typeof bspSetlistDomKind !== 'undefined' && bspSetlistDomKind) || bspSetlistLiveKind())
+          : tab;
+        let srcType = null, srcMode = null, srcToggle = null;
+        if ((kindTab === 'bible' || kindTab === 'songs') && typeof bspSettingsEffectiveDesignKey === 'function') {
           // Valeur de la CIBLE : l'écran sélectionné s'il y en a un, sinon le Live (profil de base).
-          srcType = bspSettingsEffectiveDesignKey('bgType', tab);
+          srcType = bspSettingsEffectiveDesignKey('bgType', kindTab);
+          srcMode = bspSettingsEffectiveDesignKey('bgMode', kindTab);
+          srcToggle = bspSettingsEffectiveDesignKey('bgToggle', kindTab);
         } else {
-          const prof = (typeof ensureProjectionSettingsProfiles === 'function') ? ensureProjectionSettingsProfiles()[tab] : null;
-          srcType = prof ? prof.bgType : null;
+          const prof = (typeof ensureProjectionSettingsProfiles === 'function') ? ensureProjectionSettingsProfiles()[kindTab] : null;
+          if (prof) { srcType = prof.bgType; srcMode = prof.bgMode; srcToggle = prof.bgToggle; }
         }
         if (['color', 'image', 'video'].indexOf(srcType) !== -1) next.bgType = srcType;
+        if (srcMode === 'solid' || srcMode === 'gradient') next.bgMode = srcMode;
+        if (typeof srcToggle === 'boolean') next.bgToggle = srcToggle;
       } catch (_) {}
       controls[tab] = next;
 

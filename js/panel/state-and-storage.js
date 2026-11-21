@@ -817,7 +817,48 @@
       const modal = (typeof document !== 'undefined') ? document.getElementById('settingsModal') : null;
       const settingsOpen = !!(modal && modal.style.display && modal.style.display !== 'none');
       const normalized = settingsOpen ? normalizeSettingsTargetTab(target) : 'follow';
-      return normalized === 'follow' ? (sidebarTab || 'bible') : normalized;
+      if (normalized !== 'follow') return normalized;
+      // Onglet SETLIST : la projection n'utilise QUE les profils Chants/Bible (jamais un profil
+      // « setlist »). La barre du bas édite donc le profil du type d'élément chargé dans les
+      // contrôles (chant ou verset à l'antenne) — sinon image/BG/GB partaient dans un profil
+      // que personne n'affiche.
+      if (sidebarTab === 'schedule') return bspSetlistDomKind || bspSetlistLiveKind();
+      return sidebarTab || 'bible';
+    }
+
+    // Type (chants/bible) dont les contrôles du panneau portent le design quand l'onglet
+    // SETLIST est affiché. null = pas encore chargé. Mis à jour par bspSyncSetlistDesignKind.
+    let bspSetlistDomKind = null;
+
+    function bspSetlistLiveKind() {
+      try {
+        if (typeof isLive !== 'undefined' && isLive && typeof livePointer !== 'undefined' && livePointer && livePointer.kind) {
+          return livePointer.kind === 'bible' ? 'bible' : 'songs';
+        }
+        if (typeof currentItem !== 'undefined' && currentItem && typeof getIsBibleItem === 'function') {
+          return getIsBibleItem(currentItem) ? 'bible' : 'songs';
+        }
+      } catch (_) {}
+      return 'songs';
+    }
+
+    // Sur l'onglet SETLIST : si l'élément à l'antenne change de type (chant ↔ verset), recharge
+    // les contrôles avec le profil de ce type. Les modifications précédentes ont déjà été
+    // enregistrées dans l'ancien type à chaque changement (onAnyControlChange).
+    function bspSyncSetlistDesignKind(opts = {}) {
+      if (sidebarTab !== 'schedule') { bspSetlistDomKind = null; return; }
+      const modal = document.getElementById('settingsModal');
+      if (modal && modal.style.display && modal.style.display !== 'none') return;
+      const kind = bspSetlistLiveKind();
+      if (!opts.force && kind === bspSetlistDomKind) return;
+      bspSetlistDomKind = kind;
+      applyProjectionSettingsProfileForTab(kind, { triggerChange: false });
+      if (typeof isFocusedWorkspaceMode === 'function' && isFocusedWorkspaceMode() &&
+          typeof applyFocusedWorkspaceControlsForTab === 'function') {
+        applyFocusedWorkspaceControlsForTab('schedule', { render: false });
+      }
+      if (typeof handleBgTypeChange === 'function') handleBgTypeChange();
+      if (typeof updateBgModePicker === 'function') updateBgModePicker();
     }
 
     function captureProjectionSettingsSnapshot() {
