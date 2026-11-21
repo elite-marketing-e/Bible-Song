@@ -69,6 +69,38 @@
     <div id="debug-logs"></div>
   </div>
 
+  <script>
+    // requestAnimationFrame FIABLE : une fenêtre d'écran recouverte, minimisée ou en arrière-plan
+    // ne reçoit plus d'images (rAF suspendu). Les fondus du fond attendaient ce rAF et l'image
+    // restait à opacité 0 — elle arrivait sur l'écran mais n'apparaissait jamais.
+    // Ici : rAF natif OU minuterie de secours (100 ms), le premier des deux, une seule fois.
+    // Quand l'écran est visible, le rAF natif passe en premier → comportement inchangé.
+    (function () {
+      const nativeRaf = window.requestAnimationFrame.bind(window);
+      const nativeCaf = window.cancelAnimationFrame.bind(window);
+      const pending = new Map();
+      let seq = 0;
+      window.requestAnimationFrame = function (cb) {
+        const id = ++seq;
+        let done = false;
+        const fire = (ts) => {
+          if (done) return;
+          done = true;
+          const p = pending.get(id);
+          pending.delete(id);
+          if (p) { nativeCaf(p.r); clearTimeout(p.t); }
+          cb(typeof ts === 'number' ? ts : performance.now());
+        };
+        pending.set(id, { r: nativeRaf(fire), t: setTimeout(fire, 100) });
+        return id;
+      };
+      window.cancelAnimationFrame = function (id) {
+        const p = pending.get(id);
+        if (!p) return;
+        nativeCaf(p.r); clearTimeout(p.t); pending.delete(id);
+      };
+    })();
+  </script>
   <script src="js/panel/subtitles.js"></script>
   <script>
     'use strict';
@@ -221,7 +253,7 @@
     // Marqueur de build VISIBLE : permet de vérifier que c'est bien le dernier code qui
     // tourne (et non une version en cache OBS/Electron). Affiché 6 s en bas à gauche au
     // chargement, loggé en console, et repris dans l'overlay debug.
-    const BSP_BUILD = 'BUILD-19 · 2026-11-06 (écran : effacer = la fenêtre disparaît en fondu au lieu de rester noire)';
+    const BSP_BUILD = 'BUILD-20 · 2026-11-21 (fond : apparaît même si la fenêtre d’écran ne reçoit pas d’images)';
     // Le tampon de build VERT n'apparaît plus automatiquement sur les écrans (demandé : sorties
     // propres). Il reste loggé en console et repris dans l'overlay debug (touche « d ») pour
     // vérifier au besoin que c'est bien le dernier code qui tourne.
